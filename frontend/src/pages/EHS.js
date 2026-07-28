@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -137,6 +138,7 @@ const downloadAllCSV = async (date) => {
 export default function EHS() {
   const navigate  = useNavigate();
   const reportRef = useRef(null);
+  const { t } = useTranslation();
   const user      = JSON.parse(localStorage.getItem('userInfo') || 'null');
   const isSupervisor = user?.role === 'supervisor';
   const isSuperAdmin = user?.role === 'superadmin';
@@ -235,7 +237,7 @@ export default function EHS() {
             ← Back to Dashboard
           </button>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">
-            Environment, Health & Safety
+            {t('departments.ehs', 'Environment, Health & Safety')}
           </h1>
           <p className="text-white/60 text-sm font-medium">EHS Daily Huddle Board</p>
         </motion.div>

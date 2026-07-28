@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, X, Save, ChevronLeft, ChevronRight, Lock, CheckCircle2, ShieldAlert, Clock, Download, Trash2 } from 'lucide-react';
 import axios from 'axios';
 // IST timezone helpers
@@ -19,6 +20,7 @@ const THEME_STYLES = {
 const Health = () => {
   const { shift, dept } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     document.title = "Health Department - QDSHI";
@@ -443,17 +445,17 @@ const Health = () => {
       <div className="px-4 sm:px-6 mb-4 mt-1">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Health — {shift === 'overall' ? 'Overall' : `Shift ${shift}`}</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{DEPT_FULL[dept] || dept?.toUpperCase()}</p>
+            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('modules.h')} — {shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('departments.' + dept, DEPT_FULL[dept] || dept?.toUpperCase())}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Shift time badge */}
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full">
               <Clock size={13} className="text-blue-500 shrink-0"/>
               <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? 'Overall' : `Shift ${shift}`}</p>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</p>
                 <p className="text-[11px] font-black text-slate-700">
-                  {shift === 'overall' ? 'All Shifts' : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
+                  {shift === 'overall' ? t('dashboard.allShifts', 'All Shifts') : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
                 </p>
               </div>
             </div>
@@ -470,7 +472,7 @@ const Health = () => {
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
                 <span className="text-base">⏰</span>
                 <div>
-                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Save Window</p>
+                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{t('dashboard.saveWindow', 'Save Window')}</p>
                   <p className="text-[11px] font-black text-amber-800">{timeLock.startTime} – {timeLock.endTime}</p>
                 </div>
               </div>

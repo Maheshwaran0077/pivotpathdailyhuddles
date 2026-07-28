@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express  = require('express');
 const mongoose = require('mongoose');
 const cors     = require('cors');
@@ -18,6 +18,7 @@ const timeLockRoutes     = require('./routes/timeLockRoutes');
 const loginLogRoutes     = require('./routes/loginLogRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const plantDashboardRoutes = require('./routes/plantDashboardRoutes');
+const factoryRoutes = require('./routes/factoryRoutes');
 const { startShiftAlertJob } = require('./jobs/shiftAlertJob');
 const { initWatchdogScheduler } = require('./utils/watchdogScheduler');
 
@@ -44,6 +45,7 @@ app.use('/api/timelock',     timeLockRoutes);
 app.use('/api/loginlog',     loginLogRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/plant-dashboard', plantDashboardRoutes);
+app.use('/api/factory',         factoryRoutes);
 
 // ✅ CENTRAL CONFIG (IMPORTANT — SAME AS FRONTEND)
 const DEPT_CONFIG = {
@@ -161,8 +163,12 @@ mongoose.connect(process.env.MONGO_URI)
     // Start shift-missed-alert cron job
     startShiftAlertJob();
 
-    // Start watchdog scheduler after DB is available
-    initWatchdogScheduler();
+    // Start watchdog scheduler after DB is available (unless running separately)
+    if (process.env.START_WATCHDOG_SEPARATELY !== 'true') {  
+      initWatchdogScheduler();
+    } else {
+      console.log('ℹ️ Watchdog Scheduler startup bypassed (running separately)');
+    }
 
   })
   .catch(err => console.error('❌ MongoDB error:', err.message));
@@ -171,8 +177,11 @@ mongoose.connect(process.env.MONGO_URI)
 // Directs express to stream pre-compiled production UI layers
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 
-// ✅ FIXED: Using a RegExp literal bypasses the strict string parsing constraints of path-to-regexp completely
-app.get(/^\/(?!api).*/, (req, res) => {
+// ✅ Serve React frontend for all non-API paths (Express 4 & 5 compatible)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 

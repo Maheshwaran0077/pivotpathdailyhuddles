@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import './QDSHIMonitor.css';
 import { Search, ChevronDown, CheckCircle, Clock, AlertTriangle, Battery, Shield, Info, Activity, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
 import axios from 'axios';
@@ -223,6 +224,7 @@ const parseRawDate = (rawDate) => {
 };
 
 export default function QDSHIMonitor() {
+    const { t } = useTranslation();
     const [dept, setDept] = useState('pop');
     const [selectedDateStr, setSelectedDateStr] = useState(() => {
         const d = new Date();
@@ -740,7 +742,7 @@ export default function QDSHIMonitor() {
                         onClick={() => setActiveCarouselShift(s)}
                         className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${activeCarouselShift === s ? 'bg-emerald-600 text-white shadow-lg scale-110' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
                     >
-                        {s === 'overall' ? 'Overall' : `Shift ${s}`}
+                        {s === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: s })}
                     </div>
                 ))}
             </div>
@@ -759,7 +761,7 @@ export default function QDSHIMonitor() {
                     className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
                 >
                     {Object.entries(DEPT_MAP).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
+                        <option key={k} value={k}>{t('departments.' + k, v)}</option>
                      ))}
                 </select>
                 
@@ -767,7 +769,7 @@ export default function QDSHIMonitor() {
                 <button
                     onClick={toggleFullscreen}
                     className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 p-1.5 rounded-lg shadow-sm outline-none transition-colors flex items-center justify-center"
-                    title={isFullscreen ? "Unlock Screen Layout" : "Lock Screen to Fullscreen"}
+                    title={isFullscreen ? t('plantDashboard.exitTitle', 'Unlock Screen Layout') : "Lock Screen to Fullscreen"}
                 >
                     {isFullscreen ? <Unlock size={16} /> : <Lock size={16} />}
                 </button>
@@ -786,19 +788,19 @@ export default function QDSHIMonitor() {
                         </div>
                     </div>
                     <div className="w-full md:w-2/12 text-center select-none">
-                        <strong>Yearly Performance</strong>
+                        <strong>{t('dashboard.yearlyPerformance', 'Yearly Performance')}</strong>
                         <span className="text-rose-600 font-black text-sm block mt-0.5">{yearlyPercent}% ({currentYear})</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Area</strong>
-                        <span className="text-blue-600">{DEPT_MAP[dept]}</span>
+                        <strong>{t('dashboard.area', 'Area')}</strong>
+                        <span className="text-blue-600">{t('departments.' + dept, DEPT_MAP[dept])}</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Month / Year</strong>
+                        <strong>{t('dashboard.monthYear', 'Month / Year')}</strong>
                         <span className="text-emerald-600">{currentMonthLong.substring(0, 3).toUpperCase()} / {currentYear}</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Meeting Timing</strong>
+                        <strong>{t('dashboard.meetingTiming', 'Meeting Timing')}</strong>
                         <span className="text-blue-600">06:00-06:15 | 14:00-14:15</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">

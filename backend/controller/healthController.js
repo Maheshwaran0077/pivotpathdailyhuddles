@@ -7,7 +7,7 @@ const getHealthData = async (req, res) => {
     const record = await HealthModel.findOne({
       month, year: Number(year), dept: dept || 'fgmw', shift: shift || '1',
     });
-    if (!record) return res.status(200).json({ days: [] });
+    if (!record) return res.status(200).json({ month, year: Number(year), dept: dept || 'fgmw', shift: shift || '1', days: [] });
     res.status(200).json(record);
   } catch (error) {
     res.status(500).json({ message: error.message });

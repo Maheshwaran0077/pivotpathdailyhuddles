@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams as useRParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { ChevronLeft, ChevronRight, Star, Activity, Clock, Calendar, TrendingUp, Trash2, Download, X } from 'lucide-react';
@@ -112,6 +113,7 @@ const getISTTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asi
 
 const DeliveryPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     document.title = "Delivery Department - QDSHI";
@@ -193,7 +195,7 @@ const DeliveryPage = () => {
       const logs = dData.issueLogs
         .filter(l => {
           const d = new Date(l.rawDate);
-          return d.getMonth() === index && d.getFullYear() === viewYear;
+          return d.getUTCMonth() === index && d.getUTCFullYear() === viewYear;
         })
         .sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
       return { monthName, monthIndex: index, logs };
@@ -376,7 +378,7 @@ const DeliveryPage = () => {
       const logs = dMetric.shifts?.[s]?.issueLogs || [];
       logs.forEach(log => {
         const logD = new Date(log.rawDate);
-        if (logD.getMonth() === viewMonth && logD.getFullYear() === viewYear) {
+        if (logD.getUTCMonth() === viewMonth && logD.getUTCFullYear() === viewYear) {
           const plan = Number(log.planned) || 0;
           const actual = Number(log.dispatched) || 0;
           const breakdownsVal = Number(log.breakdowns || log.breakdownCount || 0);
@@ -548,8 +550,8 @@ const DeliveryPage = () => {
     const days = Array(daysInMonth).fill('none');
     dData.issueLogs.forEach(log => {
       const d = new Date(log.rawDate);
-      if (d.getMonth() === viewMonth && d.getFullYear() === viewYear) {
-        const idx = d.getDate() - 1;
+      if (d.getUTCMonth() === viewMonth && d.getUTCFullYear() === viewYear) {
+        const idx = d.getUTCDate() - 1;
         const efficiency = (log.dispatched / (log.planned || 1)) * 100;
         const fail = efficiency < 90 || log.breakdowns > 0;
         const status = fail ? 'fail' : 'success';
@@ -670,18 +672,18 @@ const DeliveryPage = () => {
       <div className="px-4 sm:px-6 mb-2 mt-1">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Delivery</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{DEPT_FULL[activeDept]} · {activeShift === 'overall' ? 'Overall' : `Shift ${activeShift}`}</p>
+            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('modules.d')}</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('departments.' + activeDept, DEPT_FULL[activeDept])} · {activeShift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: activeShift })}</p>
           </div>
 
           {/* Centered Shift vs All-Shifts Overall performance */}
           <div className="flex items-center gap-6 justify-center sm:mx-auto select-none">
             <div className="text-center px-4 border-r border-slate-200">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{activeShift === 'overall' ? 'Overall' : `Shift ${activeShift}`} Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{activeShift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: activeShift })} {t('dashboard.overallYield')}</span>
               <span className="text-base font-black text-slate-850">{stats.success + stats.alerts ? Math.round((stats.success / (stats.success + stats.alerts)) * 100) : 0}%</span>
             </div>
             <div className="text-center px-4">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">All-Shifts Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{t('dashboard.allShiftsYield', 'All-Shifts Yield')}</span>
               <span className="text-base font-black text-emerald-650">{allShiftsStats.successPercent}%</span>
             </div>
           </div>
@@ -689,9 +691,9 @@ const DeliveryPage = () => {
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full">
               <Clock size={13} className="text-blue-500 shrink-0" />
               <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{activeShift === 'overall' ? 'Overall' : `Shift ${activeShift}`}</p>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{activeShift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: activeShift })}</p>
                 <p className="text-[11px] font-black text-slate-700">
-                  {activeShift === 'overall' ? 'All Shifts' : activeShift === '1' ? '06:00 – 14:00' : activeShift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
+                  {activeShift === 'overall' ? t('dashboard.allShifts', 'All Shifts') : activeShift === '1' ? '06:00 – 14:00' : activeShift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
                 </p>
               </div>
             </div>
@@ -699,7 +701,7 @@ const DeliveryPage = () => {
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
                 <span className="text-base">⏰</span>
                 <div>
-                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Save Window</p>
+                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{t('dashboard.saveWindow', 'Save Window')}</p>
                   <p className="text-[11px] font-black text-amber-800">{timeLock.startTime} – {timeLock.endTime}</p>
                 </div>
               </div>

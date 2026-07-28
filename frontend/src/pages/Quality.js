@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import {
@@ -45,6 +46,7 @@ export default function QualityPage() {
   const { shift, dept } = useParams();
   const navigate = useNavigate();
   const reportRef = useRef(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     document.title = "Quality Department - QDSHI";
@@ -370,7 +372,7 @@ export default function QualityPage() {
       const logs = qMetric.shifts?.[s]?.issueLogs || [];
       logs.forEach(log => {
         const logD = new Date(log.rawDate);
-        if (logD.getMonth() === viewDate.getMonth() && logD.getFullYear() === viewYear) {
+        if (logD.getUTCMonth() === viewDate.getMonth() && logD.getUTCFullYear() === viewYear) {
           if (log.reason === "Target Met") totalSuccess++;
           else totalAlerts++;
         }
@@ -425,8 +427,8 @@ export default function QualityPage() {
     const logs = Array.isArray(qData.issueLogs) ? qData.issueLogs : [];
     logs.forEach(log => {
       const logD = new Date(log.rawDate);
-      if (logD.getMonth() === viewDate.getMonth() && logD.getFullYear() === viewYear) {
-        const idx = logD.getDate() - 1;
+      if (logD.getUTCMonth() === viewDate.getMonth() && logD.getUTCFullYear() === viewYear) {
+        const idx = logD.getUTCDate() - 1;
         if (idx >= 0 && idx < baseDays.length) {
           const status = log.reason === "Target Met" ? "success" : "fail";
           if (baseDays[idx] === "fail" || status === "fail") {
@@ -452,7 +454,7 @@ export default function QualityPage() {
     return months.map((m, i) => {
       const mLogs = logs.filter(l => {
         const d = new Date(l.rawDate);
-        return d.getFullYear() === viewYear && d.getMonth() === i;
+        return d.getUTCFullYear() === viewYear && d.getUTCMonth() === i;
       });
       return {
         name: m,
@@ -508,18 +510,18 @@ export default function QualityPage() {
       <div className="px-4 sm:px-6 mb-4 mt-1">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Quality — {shift === 'overall' ? 'Overall' : `Shift ${shift}`}</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{DEPT_FULL[dept] || dept?.toUpperCase()}</p>
+            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('modules.q')} — {shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('departments.' + dept, DEPT_FULL[dept] || dept?.toUpperCase())}</p>
           </div>
 
           {/* Centered Shift vs All-Shifts Overall performance */}
           <div className="flex items-center gap-6 justify-center sm:mx-auto select-none">
             <div className="text-center px-4 border-r border-slate-200">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{shift === 'overall' ? 'Overall' : `Shift ${shift}`} Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })} {t('dashboard.overallYield')}</span>
               <span className="text-base font-black text-slate-850">{stats.success + stats.alerts ? Math.round((stats.success / (stats.success + stats.alerts)) * 100) : 0}%</span>
             </div>
             <div className="text-center px-4">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">All-Shifts Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{t('dashboard.allShiftsYield', 'All-Shifts Yield')}</span>
               <span className="text-base font-black text-emerald-650">{allShiftsStats.successPercent}%</span>
             </div>
           </div>
@@ -528,7 +530,7 @@ export default function QualityPage() {
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full self-start sm:self-auto">
               <span className="text-base">⏰</span>
               <div>
-                <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Save Window</p>
+                <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{t('dashboard.saveWindow', 'Save Window')}</p>
                 <p className="text-[11px] font-black text-amber-800">{timeLock.startTime} – {timeLock.endTime}</p>
               </div>
             </div>
@@ -581,25 +583,25 @@ export default function QualityPage() {
             />
           </div>
           <div className="grid grid-cols-3 gap-2 w-full mt-6">
-            <StatBox val={stats.alerts} label="Alerts" type="red" />
-            <StatBox val={stats.success} label="Success" type="green" />
-            <StatBox val={stats.holiday} label="Holiday" type="slate" />
+            <StatBox val={stats.alerts} label={t('dashboard.alerts', 'Alerts')} type="red" />
+            <StatBox val={stats.success} label={t('dashboard.success', 'Success')} type="green" />
+            <StatBox val={stats.holiday} label={t('dashboard.holiday', 'Holiday')} type="slate" />
           </div>
         </div>
 
         {/* History Table */}
         <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-5">
-          <ChartCard title={`${viewMonthName} ALERT HISTORY`}>
+          <ChartCard title={`${viewMonthName} ${t('dashboard.alertHistory', 'ALERT HISTORY')}`}>
             <div className="overflow-y-auto pr-2 custom-scrollbar max-h-[320px] min-h-[200px]">
               <table className="w-full text-[11px] border-separate border-spacing-0">
                 <thead className="bg-[#E2E8F0] sticky top-0 z-20 shadow-sm text-[#64748B] font-black uppercase">
                   <tr>
-                    <th className="p-2 text-left rounded-tl-xl">Date</th>
-                    {shift === 'overall' && <th className="p-2 text-left">Shift</th>}
-                    <th className="p-2 text-left">Reason</th>
-                    <th className="p-2 text-left">Deviation</th>
-                    <th className="p-2 text-left">Time</th>
-                    <th className="p-2 text-right rounded-tr-xl">Action</th>
+                    <th className="p-2 text-left rounded-tl-xl">{t('dashboard.date', 'Date')}</th>
+                    {shift === 'overall' && <th className="p-2 text-left">{t('navbar.shift', 'Shift')}</th>}
+                    <th className="p-2 text-left">{t('dashboard.reason', 'Reason')}</th>
+                    <th className="p-2 text-left">{t('dashboard.deviation', 'Deviation')}</th>
+                    <th className="p-2 text-left">{t('dashboard.time', 'Time')}</th>
+                    <th className="p-2 text-right rounded-tr-xl">{t('dashboard.action', 'Action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -616,7 +618,12 @@ export default function QualityPage() {
                       <td className={`p-2 font-black uppercase tracking-tight ${log.reason === 'Target Met' ? 'text-emerald-500' : 'text-red-500'}`}>
                         <div className="flex items-center gap-1">
                           <div className={`w-1.5 h-1.5 rounded-full ${log.reason === 'Target Met' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                          {log.reason}
+                          {log.reason === 'Target Met' ? t('dashboard.targetMet', 'Target Met') : (
+                            log.reason === 'Machine Breakdown' ? t('dashboard.machineBreakdown') :
+                            log.reason === 'No Power' ? t('dashboard.noPower') :
+                            log.reason === 'No Manpower' ? t('dashboard.noManpower') :
+                            log.reason === 'Quality Reject' ? t('dashboard.qualityReject') : log.reason
+                          )}
                         </div>
                       </td>
                       <td className="p-2 font-bold text-slate-500 text-[10px]">{log.deviationType || '--'}</td>
@@ -630,29 +637,29 @@ export default function QualityPage() {
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={6} className="p-12 text-center text-slate-300 font-bold uppercase italic tracking-widest">No alerts recorded</td></tr>
+                    <tr><td colSpan={6} className="p-12 text-center text-slate-300 font-bold uppercase italic tracking-widest">{t('dashboard.noAlerts', 'No alerts recorded')}</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </ChartCard>
 
-          <ChartCard title={`${viewYear} PERFORMANCE SUMMARY`}>
+          <ChartCard title={`${viewYear} ${t('dashboard.perfSummary', 'PERFORMANCE SUMMARY')}`}>
             <div className="overflow-x-auto custom-scrollbar">
               <table className="min-w-full text-left text-[10px]">
                 <thead className="bg-[#F1F5F9] text-[#64748B] font-black uppercase">
                   <tr>
-                    <th className="p-3">Category</th>
+                    <th className="p-3">{t('dashboard.category', 'Category')}</th>
                     {annualTrend.map(m => <th key={m.name} className="p-3 text-center">{m.name}</th>)}
                   </tr>
                 </thead>
                 <tbody className="font-bold divide-y divide-slate-100">
                   <tr>
-                    <td className="p-3 text-slate-500">Alerts</td>
+                    <td className="p-3 text-slate-500">{t('dashboard.alerts', 'Alerts')}</td>
                     {annualTrend.map((m, i) => <td key={i} className={`p-3 text-center ${m.fail > 0 ? 'text-red-500' : 'text-slate-200'}`}>{m.fail || '--'}</td>)}
                   </tr>
                   <tr>
-                    <td className="p-3 text-slate-500">Success</td>
+                    <td className="p-3 text-slate-500">{t('dashboard.success', 'Success')}</td>
                     {annualTrend.map((m, i) => <td key={i} className={`p-3 text-center ${m.pass > 0 ? 'text-emerald-500' : 'text-slate-200'}`}>{m.pass || '--'}</td>)}
                   </tr>
                 </tbody>
@@ -663,13 +670,13 @@ export default function QualityPage() {
 
         {/* Charts Column */}
         <div className="col-span-12 md:col-span-6 lg:col-span-5 flex flex-col gap-5">
-          <ChartCard title={`${viewMonthName} DISTRIBUTION`}>
+          <ChartCard title={`${viewMonthName} ${t('dashboard.distribution', 'DISTRIBUTION')}`}>
             <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={[
-                  { name: 'Alerts', value: stats.alerts },
-                  { name: 'Success', value: stats.success },
-                  { name: 'Holiday', value: stats.holiday }
+                  { name: t('dashboard.alerts', 'Alerts'), value: stats.alerts },
+                  { name: t('dashboard.success', 'Success'), value: stats.success },
+                  { name: t('dashboard.holiday', 'Holiday'), value: stats.holiday }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                   <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />

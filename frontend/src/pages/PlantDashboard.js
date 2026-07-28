@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowUp, ArrowDown, Save, Edit3, X, Activity, Download, Lock, Unlock } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
@@ -12,6 +13,7 @@ const FIN_MONTHS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec
 const YEARS = Array.from({ length: 30 }, (_, i) => 2021 + i); // 30 years from 2021 to 2050
 
 export default function PlantDashboard() {
+  const { t } = useTranslation();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -422,7 +424,7 @@ export default function PlantDashboard() {
             <div className="flex items-center gap-4">
               {!isFullscreen && <img src={logo} alt="PivotPath Logo" className="h-10" />}
               <h1 className="text-xl font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
-                <Activity className="text-emerald-500" /> Performance Dashboard of Softgel - {year}
+                <Activity className="text-emerald-500" /> {t('plantDashboard.title', 'Performance Dashboard of Softgel')} - {year}
               </h1>
               
               {/* Exit Native Full Screen mode */}
@@ -430,9 +432,9 @@ export default function PlantDashboard() {
                 <button
                   onClick={exitNativeFullscreen}
                   className="ml-4 flex items-center gap-1.5 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors shadow-md active:scale-95"
-                  title="Exit Presentation Mode"
+                  title={t('plantDashboard.exitTitle', 'Exit Presentation Mode')}
                 >
-                  <Unlock size={14} /> Exit Presentation
+                  <Unlock size={14} /> {t('plantDashboard.exitBtn', 'Exit Presentation')}
                 </button>
               )}
             </div>

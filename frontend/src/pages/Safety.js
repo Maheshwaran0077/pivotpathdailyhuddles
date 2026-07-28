@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import {
@@ -30,6 +31,7 @@ const THEME_STYLES = {
 const SafetyPage = () => {
   const { shift, dept } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     document.title = "Safety Department - QDSHI";
@@ -191,7 +193,7 @@ const SafetyPage = () => {
       const logs = sMetric.shifts?.[s]?.issueLogs || [];
       logs.forEach(log => {
         const logD = new Date(log.rawDate);
-        if (logD.getMonth() === viewDate.getMonth() && logD.getFullYear() === viewYear) {
+        if (logD.getUTCMonth() === viewDate.getMonth() && logD.getUTCFullYear() === viewYear) {
           if (log.numNearMiss > 0 || log.numUnsafeActs > 0 || log.numSafetyIncidents > 0) {
             totalAlerts++;
           } else {
@@ -269,7 +271,7 @@ const SafetyPage = () => {
     return sData.issueLogs.filter(l => {
       if (!l.rawDate) return false;
       const d = new Date(l.rawDate);
-      return d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewYear;
+      return d.getUTCMonth() === viewDate.getMonth() && d.getUTCFullYear() === viewYear;
     }).sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
   }, [sData.issueLogs, viewDate, viewYear]);
 
@@ -278,7 +280,7 @@ const SafetyPage = () => {
     return months.map((month, index) => {
       const monthLogs = sData.issueLogs.filter(l => {
         const d = new Date(l.rawDate);
-        return d.getMonth() === index && d.getFullYear() === viewYear;
+        return d.getUTCMonth() === index && d.getUTCFullYear() === viewYear;
       });
       return {
         name: month,
@@ -298,7 +300,7 @@ const SafetyPage = () => {
     const baseDays = Array(daysInViewMonth).fill("none");
     filteredLogs.forEach(log => {
       const d = new Date(log.rawDate);
-      const idx = d.getDate() - 1;
+      const idx = d.getUTCDate() - 1;
       if (idx >= 0 && idx < baseDays.length) {
         const status = (Number(log.numSafetyIncidents) || 0) === 0 ? "success" : "fail";
         if (baseDays[idx] === "fail" || status === "fail") {
@@ -589,18 +591,18 @@ const SafetyPage = () => {
       <div className="px-4 sm:px-6 mb-4 mt-1">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Safety — {shift === 'overall' ? 'Overall' : `Shift ${shift}`}</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{DEPT_FULL[dept] || dept?.toUpperCase()}</p>
+            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('modules.s')} — {shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('departments.' + dept, DEPT_FULL[dept] || dept?.toUpperCase())}</p>
           </div>
 
           {/* Centered Shift vs All-Shifts Overall performance */}
           <div className="flex items-center gap-6 justify-center sm:mx-auto select-none">
             <div className="text-center px-4 border-r border-slate-200">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{shift === 'overall' ? 'Overall' : `Shift ${shift}`} Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })} {t('dashboard.overallYield')}</span>
               <span className="text-base font-black text-slate-850">{stats.safeDays + (dynamicDaysData.filter(s => s === 'fail').length) ? Math.round((stats.safeDays / (stats.safeDays + (dynamicDaysData.filter(s => s === 'fail').length))) * 100) : 0}%</span>
             </div>
             <div className="text-center px-4">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">All-Shifts Yield</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">{t('dashboard.allShiftsYield', 'All-Shifts Yield')}</span>
               <span className="text-base font-black text-emerald-650">{allShiftsStats.successPercent}%</span>
             </div>
           </div>
@@ -609,9 +611,9 @@ const SafetyPage = () => {
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full">
               <Clock size={13} className="text-blue-500 shrink-0" />
               <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? 'Overall' : `Shift ${shift}`}</p>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</p>
                 <p className="text-[11px] font-black text-slate-700">
-                  {shift === 'overall' ? 'All Shifts' : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
+                  {shift === 'overall' ? t('dashboard.allShifts', 'All Shifts') : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
                 </p>
               </div>
             </div>
@@ -619,7 +621,7 @@ const SafetyPage = () => {
                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
                  <span className="text-base">⏰</span>
                  <div>
-                   <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Save Window</p>
+                   <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{t('dashboard.saveWindow', 'Save Window')}</p>
                    <p className="text-[11px] font-black text-amber-800">{timeLock.startTime} – {timeLock.endTime}</p>
                  </div>
                </div>
