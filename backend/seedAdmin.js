@@ -11,7 +11,7 @@ const seedAdmin = async () => {
     // Check if admin already exists to avoid duplicates
     const existingAdmin = await User.findOne({ gmail: 'Maheshadmin@gmail.com' });
     if (existingAdmin) {
-      console.log('Admin already exists!');
+      console.log('Admin already exists!');    
       process.exit();
     }
 

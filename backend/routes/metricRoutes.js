@@ -37,7 +37,7 @@ const getShiftCounts = (metric, shift, month = null) => {
 
   // Filter logs for this month if specified (month format is "YYYY-MM")
   const filteredLogs = month
-    ? logs.filter(l => l.date && l.date.startsWith(month))
+    ? logs.filter(l => (l.rawDate && l.rawDate.startsWith(month)) || (l.date && l.date.split('/').reverse().join('-').startsWith(month)))
     : logs;
 
   if (!logs.length) {
@@ -135,7 +135,7 @@ router.get('/global-pillars', async (req, res) => {
           const deptName = DEPT_CONFIG[metric.dept] || metric.dept.toUpperCase();
 
           const filteredLogs = month
-            ? logs.filter(l => l.date && l.date.startsWith(month))
+            ? logs.filter(l => (l.rawDate && l.rawDate.startsWith(month)) || (l.date && l.date.split('/').reverse().join('-').startsWith(month)))
             : logs;
 
           filteredLogs.forEach(l => {
@@ -231,10 +231,26 @@ router.post('/update', async (req, res) => {
   if (!shift) return res.status(400).json({ error: 'Shift is required' });
   if (!dept || !DEPT_CONFIG[dept]) return res.status(400).json({ error: 'Invalid department' });
 
-  // Time lock check
+  // Time lock & Supervisor shift/dept check
   if (userRole !== 'superadmin') {
     const lockCheck = await checkTimeLock(dept, shift);
     if (!lockCheck.allowed) return res.status(403).json({ error: lockCheck.message });
+
+    if (empId) {
+      const User = require('../models/User');
+      const dbUser = await User.findOne({ employeeId: empId });
+      if (dbUser && dbUser.role === 'supervisor') {
+        const allowedShifts = (dbUser.shift || '').split(',').map(s => s.trim()).filter(Boolean);
+        const allowedDepts = (dbUser.department || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+        const hasShiftRestriction = allowedShifts.length > 0 && !allowedShifts.includes('NONE');
+        if (hasShiftRestriction && !allowedShifts.includes(shift)) {
+          return res.status(403).json({ error: `Not authorized to update Shift ${shift}` });
+        }
+        if (!allowedDepts.includes(dept.toLowerCase())) {
+          return res.status(403).json({ error: `Not authorized to update department ${dept}` });
+        }
+      }
+    }
   }
 
   try {
@@ -273,6 +289,22 @@ router.post('/staff', async (req, res) => {
   if (userRole !== 'superadmin') {
     const lockCheck = await checkTimeLock(dept, shift);
     if (!lockCheck.allowed) return res.status(403).json({ error: lockCheck.message });
+
+    if (empId) {
+      const User = require('../models/User');
+      const dbUser = await User.findOne({ employeeId: empId });
+      if (dbUser && dbUser.role === 'supervisor') {
+        const allowedShifts = (dbUser.shift || '').split(',').map(s => s.trim()).filter(Boolean);
+        const allowedDepts = (dbUser.department || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+        const hasShiftRestriction = allowedShifts.length > 0 && !allowedShifts.includes('NONE');
+        if (hasShiftRestriction && !allowedShifts.includes(shift)) {
+          return res.status(403).json({ error: `Not authorized to update Shift ${shift}` });
+        }
+        if (!allowedDepts.includes(dept.toLowerCase())) {
+          return res.status(403).json({ error: `Not authorized to update department ${dept}` });
+        }
+      }
+    }
   }
 
   try {
@@ -292,13 +324,29 @@ router.post('/staff', async (req, res) => {
 
 // POST activity logs
 router.post('/activity', async (req, res) => {
-  const { letter, dept, shift, logs, userRole } = req.body;
+  const { letter, dept, shift, logs, userRole, empId } = req.body;
   if (!shift) return res.status(400).json({ error: 'Shift is required' });
   if (!dept || !DEPT_CONFIG[dept]) return res.status(400).json({ error: 'Invalid department' });
 
   if (userRole !== 'superadmin') {
     const lockCheck = await checkTimeLock(dept, shift);
     if (!lockCheck.allowed) return res.status(403).json({ error: lockCheck.message });
+
+    if (empId) {
+      const User = require('../models/User');
+      const dbUser = await User.findOne({ employeeId: empId });
+      if (dbUser && dbUser.role === 'supervisor') {
+        const allowedShifts = (dbUser.shift || '').split(',').map(s => s.trim()).filter(Boolean);
+        const allowedDepts = (dbUser.department || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+        const hasShiftRestriction = allowedShifts.length > 0 && !allowedShifts.includes('NONE');
+        if (hasShiftRestriction && !allowedShifts.includes(shift)) {
+          return res.status(403).json({ error: `Not authorized to update Shift ${shift}` });
+        }
+        if (!allowedDepts.includes(dept.toLowerCase())) {
+          return res.status(403).json({ error: `Not authorized to update department ${dept}` });
+        }
+      }
+    }
   }
 
   try {

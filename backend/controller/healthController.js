@@ -7,7 +7,7 @@ const getHealthData = async (req, res) => {
     const record = await HealthModel.findOne({
       month, year: Number(year), dept: dept || 'fgmw', shift: shift || '1',
     });
-    if (!record) return res.status(200).json({ days: [] });
+    if (!record) return res.status(200).json({ month, year: Number(year), dept: dept || 'fgmw', shift: shift || '1', days: [] });
     res.status(200).json(record);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -29,11 +29,26 @@ const updateHealthDay = async (req, res) => {
     const d = dept  || 'fgmw';
     const s = shift || '1';
 
-    // Timelock check — superadmin always bypasses
+    // Timelock & Supervisor department/shift check — superadmin always bypasses
     if (userRole !== 'superadmin') {
       const lockCheck = await checkTimeLock(d, s);
       if (!lockCheck.allowed) {
         return res.status(403).json({ message: lockCheck.message });
+      }
+      if (empId) {
+        const User = require('../models/User');
+        const dbUser = await User.findOne({ employeeId: empId });
+        if (dbUser && dbUser.role === 'supervisor') {
+          const allowedShifts = (dbUser.shift || '').split(',').map(sh => sh.trim()).filter(Boolean);
+          const allowedDepts = (dbUser.department || '').split(',').map(dp => dp.trim().toLowerCase()).filter(Boolean);
+          const hasShiftRestriction = allowedShifts.length > 0 && !allowedShifts.includes('NONE');
+          if (hasShiftRestriction && !allowedShifts.includes(s)) {
+            return res.status(403).json({ message: `Not authorized to update Shift ${s}` });
+          }
+          if (!allowedDepts.includes(d.toLowerCase())) {
+            return res.status(403).json({ message: `Not authorized to update department ${d}` });
+          }
+        }
       }
     }
 

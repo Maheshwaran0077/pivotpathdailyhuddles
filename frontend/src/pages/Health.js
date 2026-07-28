@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, X, Save, ChevronLeft, ChevronRight, Lock, CheckCircle2, ShieldAlert, Clock, Download, Trash2 } from 'lucide-react';
 import axios from 'axios';
 // IST timezone helpers
@@ -19,6 +20,7 @@ const THEME_STYLES = {
 const Health = () => {
   const { shift, dept } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     document.title = "Health Department - QDSHI";
@@ -26,11 +28,13 @@ const Health = () => {
   }, []);
 
   const user        = JSON.parse(localStorage.getItem('userInfo')) || { role: 'supervisor' };
-  const isSuperAdmin = user.role === 'superadmin';
-  const isSupervisor = user.role === 'supervisor';
-  const userDepts    = (user.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isSupervisor = user?.role === 'supervisor';
+  const userDepts    = (user?.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const userShifts   = (user?.shift || '').split(',').map(s => s.trim()).filter(Boolean);
   const isAssignedDept = isSuperAdmin || userDepts.includes((dept || '').toLowerCase());
-  const canUpdate    = ((isSupervisor && isAssignedDept) || isSuperAdmin) && shift !== 'overall';
+  const isAssignedShift = isSuperAdmin || userShifts.length === 0 || userShifts.includes('NONE') || userShifts.includes(shift);
+  const canUpdate    = ((isSupervisor && isAssignedDept && isAssignedShift) || isSuperAdmin) && shift !== 'overall';
   const reportRef    = useRef(null);
 
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
@@ -74,9 +78,9 @@ const Health = () => {
       try {
         if (shift === 'overall') {
           const [h1, h2, h3] = await Promise.all([
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '1' } }),
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '2' } }),
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '3' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '1' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '2' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '3' } }),
           ]);
           
           const days1 = h1.data?.days || [];
@@ -127,7 +131,7 @@ const Health = () => {
           setAllMonthsData(prev => ({ ...prev, [currentMonthName]: combinedDays }));
         } else {
           const { data } = await axios.get(`${API}/api/health`, {
-            params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: shift || '1' },
+            params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: shift || '1' },
           });
           if (data?.days?.length > 0) {
             setAllMonthsData(prev => ({ ...prev, [currentMonthName]: data.days }));
@@ -155,7 +159,7 @@ const Health = () => {
   // Fetch time lock for this dept+shift
   useEffect(() => {
     if (shift !== 'overall') {
-      fetch(`${API}/api/timelock/${dept || 'fg'}/${shift || '1'}`)
+      fetch(`${API}/api/timelock/${dept || 'fgmw'}/${shift || '1'}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => setTimeLock(d))
         .catch(() => {});
@@ -169,7 +173,7 @@ const Health = () => {
     const fetchMetrics = async () => {
       try {
         if (shift === 'overall') {
-          const response = await fetch(`${API}/api/metrics?dept=${dept || 'fg'}`);
+          const response = await fetch(`${API}/api/metrics?dept=${dept || 'fgmw'}`);
           const dbData = await response.json();
           if (dbData?.length > 0) {
             const hLive = dbData.find(d => d.letter === 'H');
@@ -186,7 +190,7 @@ const Health = () => {
             }
           }
         } else {
-          const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fg'}`;
+          const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fgmw'}`;
           const response = await fetch(url);
           const dbData = await response.json();
           if (dbData?.length > 0) {
@@ -293,7 +297,7 @@ const Health = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          letter: 'H', shift: shift || '1', dept: dept || 'fg',
+          letter: 'H', shift: shift || '1', dept: dept || 'fgmw',
           logs: type === 'staff' ? staffLogs : activityLogs,
           empId: user?.employeeId,
           empName: user?.name,
@@ -318,7 +322,7 @@ const Health = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            letter: 'H', shift: shift || '1', dept: dept || 'fg', 
+            letter: 'H', shift: shift || '1', dept: dept || 'fgmw', 
             logs: updatedLogs,
             empId: user?.employeeId,
             empName: user?.name,
@@ -441,17 +445,17 @@ const Health = () => {
       <div className="px-4 sm:px-6 mb-4 mt-1">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Health — {shift === 'overall' ? 'Overall' : `Shift ${shift}`}</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{DEPT_FULL[dept] || dept?.toUpperCase()}</p>
+            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('modules.h')} — {shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('departments.' + dept, DEPT_FULL[dept] || dept?.toUpperCase())}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Shift time badge */}
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full">
               <Clock size={13} className="text-blue-500 shrink-0"/>
               <div>
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? 'Overall' : `Shift ${shift}`}</p>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{shift === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: shift })}</p>
                 <p className="text-[11px] font-black text-slate-700">
-                  {shift === 'overall' ? 'All Shifts' : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
+                  {shift === 'overall' ? t('dashboard.allShifts', 'All Shifts') : shift === '1' ? '06:00 – 14:00' : shift === '2' ? '14:00 – 22:00' : '22:00 – 06:00'}
                 </p>
               </div>
             </div>
@@ -468,7 +472,7 @@ const Health = () => {
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
                 <span className="text-base">⏰</span>
                 <div>
-                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Save Window</p>
+                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">{t('dashboard.saveWindow', 'Save Window')}</p>
                   <p className="text-[11px] font-black text-amber-800">{timeLock.startTime} – {timeLock.endTime}</p>
                 </div>
               </div>

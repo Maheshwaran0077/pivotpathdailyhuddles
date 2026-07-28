@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import './QDSHIMonitor.css';
 import { Search, ChevronDown, CheckCircle, Clock, AlertTriangle, Battery, Shield, Info, Activity, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
 import axios from 'axios';
@@ -211,7 +212,19 @@ const ActionTable = ({ actions }) => {
     );
 };
 
+const parseRawDate = (rawDate) => {
+    if (!rawDate) return null;
+    const parts = rawDate.split('-');
+    if (parts.length !== 3) return null;
+    return {
+        year: Number(parts[0]),
+        monthIdx: Number(parts[1]) - 1,
+        date: Number(parts[2])
+    };
+};
+
 export default function QDSHIMonitor() {
+    const { t } = useTranslation();
     const [dept, setDept] = useState('pop');
     const [selectedDateStr, setSelectedDateStr] = useState(() => {
         const d = new Date();
@@ -230,10 +243,14 @@ export default function QDSHIMonitor() {
         'pro': 'Production', 'spp': 'Secondary Packing', 'fac': 'Facilities'
     };
 
-    const targetDate = new Date(`${selectedDateStr}-01`);
-    const currentMonthIdx = targetDate.getMonth();
-    const currentYear = targetDate.getFullYear();
-    const currentMonthLong = targetDate.toLocaleString('default', { month: 'long' });
+    const dateParts = selectedDateStr.split('-');
+    const currentYear = Number(dateParts[0]);
+    const currentMonthIdx = Number(dateParts[1]) - 1;
+    const MONTHS_MAP = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+    const currentMonthLong = MONTHS_MAP[currentMonthIdx];
 
     const [activeCarouselShift, setActiveCarouselShift] = useState('overall');
     const [isHovered, setIsHovered] = useState(false);
@@ -314,9 +331,9 @@ export default function QDSHIMonitor() {
         qLogs.push(...(qData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     qLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 const currentVal = qRows[dayIdx][0];
                 const isDeviation = log.reason !== 'Target Met';
@@ -341,9 +358,9 @@ export default function QDSHIMonitor() {
         dLogs.push(...(dData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     dLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 dRows[dayIdx].plan += Number(log.planned) || 0;
                 dRows[dayIdx].actual += Number(log.dispatched) || 0;
@@ -362,9 +379,9 @@ export default function QDSHIMonitor() {
         sLogs.push(...(sData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     sLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 if (!sRows[dayIdx]) sRows[dayIdx] = { nm: 0, ua: 0, lti: 0 };
                 sRows[dayIdx].nm += Number(log.numNearMiss) || 0;
@@ -453,9 +470,9 @@ export default function QDSHIMonitor() {
         const qRowsLocal = Array.from({length: 31}, () => (['']));
         const qLogsLocal = qData.shifts?.[shiftVal]?.issueLogs || [];
         qLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     qRowsLocal[dayIdx][0] = log.reason === 'Target Met' ? '✅' : 
                                       log.deviationType === 'Human Error' ? 'HE' : 
@@ -467,9 +484,9 @@ export default function QDSHIMonitor() {
         const dRowsLocal = Array.from({length: 31}, () => ({ plan: 0, actual: 0 }));
         const dLogsLocal = dData.shifts?.[shiftVal]?.issueLogs || [];
         dLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     dRowsLocal[dayIdx].plan += Number(log.planned) || 0;
                     dRowsLocal[dayIdx].actual += Number(log.dispatched) || 0;
@@ -480,9 +497,9 @@ export default function QDSHIMonitor() {
         const sRowsLocal = Array.from({length: 31}, () => null);
         const sLogsLocal = sData.shifts?.[shiftVal]?.issueLogs || [];
         sLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     if (!sRowsLocal[dayIdx]) sRowsLocal[dayIdx] = { nm: 0, ua: 0, lti: 0 };
                     sRowsLocal[dayIdx].nm += Number(log.numNearMiss) || 0;
@@ -599,8 +616,8 @@ export default function QDSHIMonitor() {
         // 1. Quality (Q)
         const qLogs = qData.shifts?.[shiftVal]?.issueLogs || [];
         qLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 if (log.reason === 'Target Met') totalSuccess++;
                 else totalAlerts++;
             }
@@ -609,8 +626,8 @@ export default function QDSHIMonitor() {
         // 2. Delivery (D)
         const dLogs = dData.shifts?.[shiftVal]?.issueLogs || [];
         dLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 const plan = Number(log.planned) || 0;
                 const actual = Number(log.dispatched) || 0;
                 if (plan > 0 || actual > 0) {
@@ -623,8 +640,8 @@ export default function QDSHIMonitor() {
         // 3. Safety (S)
         const sLogs = sData.shifts?.[shiftVal]?.issueLogs || [];
         sLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 if (log.numNearMiss > 0 || log.numUnsafeActs > 0 || log.numSafetyIncidents > 0) {
                     totalAlerts++;
                 } else {
@@ -667,8 +684,8 @@ export default function QDSHIMonitor() {
             ['1', '2', '3'].forEach(shiftVal => {
                 const logs = metric.shifts?.[shiftVal]?.issueLogs || [];
                 logs.forEach(log => {
-                    const d = new Date(log.rawDate);
-                    if (d.getFullYear() === currentYear) {
+                    const parsed = parseRawDate(log.rawDate);
+                    if (parsed && parsed.year === currentYear) {
                         if (metric.letter === 'Q') {
                             if (log.reason === 'Target Met') totalSuccess++;
                             else totalAlerts++;
@@ -725,7 +742,7 @@ export default function QDSHIMonitor() {
                         onClick={() => setActiveCarouselShift(s)}
                         className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${activeCarouselShift === s ? 'bg-emerald-600 text-white shadow-lg scale-110' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
                     >
-                        {s === 'overall' ? 'Overall' : `Shift ${s}`}
+                        {s === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: s })}
                     </div>
                 ))}
             </div>
@@ -744,7 +761,7 @@ export default function QDSHIMonitor() {
                     className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
                 >
                     {Object.entries(DEPT_MAP).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
+                        <option key={k} value={k}>{t('departments.' + k, v)}</option>
                      ))}
                 </select>
                 
@@ -752,7 +769,7 @@ export default function QDSHIMonitor() {
                 <button
                     onClick={toggleFullscreen}
                     className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 p-1.5 rounded-lg shadow-sm outline-none transition-colors flex items-center justify-center"
-                    title={isFullscreen ? "Unlock Screen Layout" : "Lock Screen to Fullscreen"}
+                    title={isFullscreen ? t('plantDashboard.exitTitle', 'Unlock Screen Layout') : "Lock Screen to Fullscreen"}
                 >
                     {isFullscreen ? <Unlock size={16} /> : <Lock size={16} />}
                 </button>
@@ -771,19 +788,19 @@ export default function QDSHIMonitor() {
                         </div>
                     </div>
                     <div className="w-full md:w-2/12 text-center select-none">
-                        <strong>Yearly Performance</strong>
+                        <strong>{t('dashboard.yearlyPerformance', 'Yearly Performance')}</strong>
                         <span className="text-rose-600 font-black text-sm block mt-0.5">{yearlyPercent}% ({currentYear})</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Area</strong>
-                        <span className="text-blue-600">{DEPT_MAP[dept]}</span>
+                        <strong>{t('dashboard.area', 'Area')}</strong>
+                        <span className="text-blue-600">{t('departments.' + dept, DEPT_MAP[dept])}</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Month / Year</strong>
+                        <strong>{t('dashboard.monthYear', 'Month / Year')}</strong>
                         <span className="text-emerald-600">{currentMonthLong.substring(0, 3).toUpperCase()} / {currentYear}</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">
-                        <strong>Meeting Timing</strong>
+                        <strong>{t('dashboard.meetingTiming', 'Meeting Timing')}</strong>
                         <span className="text-blue-600">06:00-06:15 | 14:00-14:15</span>
                     </div>
                     <div className="w-full md:w-2/12 text-center">

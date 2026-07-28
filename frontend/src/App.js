@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -17,7 +18,9 @@ import Engineering from './pages/Engineering';
 import HR from './pages/HR';
 import QDSHIMonitor from './pages/QDSHIMonitor';
 import PlantDashboard from './pages/PlantDashboard';
+import PredictiveDashboard from './pages/PredictiveDashboard';
 import PivotPathLogo from './assest/pivotPathLogo.svg';
+import PivotPathRoadmap from './pages/PivotPathRoadmap';
 
 import { DEPARTMENTS, MODULES, SPECIAL_DEPARTMENTS, ALL_DEPARTMENTS } from './departments';
 
@@ -26,12 +29,12 @@ const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'loca
 const DEPT_BG = {
   emerald: 'from-emerald-500 to-emerald-700 shadow-emerald-200',   // FGMW
   indigo: 'from-indigo-500 to-indigo-700 shadow-indigo-200',     // PMW
-  purple: 'from-purple-500 to-purple-700 shadow-purple-200',     // RMW
-  amber: 'from-amber-500 to-amber-700 shadow-amber-200',         // PPP
+  purple: 'from-purple-500 to-purple-700 shadow-purple-200',     // RMW  
+  amber: 'from-amber-500 to-amber-700 shadow-amber-200',         // PPP       
   pink: 'from-pink-500 to-pink-700 shadow-pink-200',             // POP
-  teal: 'from-teal-500 to-teal-700 shadow-teal-200',             // QCMAD
+  teal: 'from-teal-500 to-teal-700 shadow-teal-200',             // QCMAD  
   yellow: 'from-yellow-400 to-yellow-600 shadow-yellow-200',     // PRO
-  red: 'from-red-500 to-red-700 shadow-red-200',                 // SPP
+  red: 'from-red-500 to-red-700 shadow-red-200',                 // SPP  
   cyan: 'from-cyan-500 to-cyan-700 shadow-cyan-200',             // FAC
   lime: 'from-lime-500 to-lime-700 shadow-lime-200',             // EHS
   sky: 'from-sky-500 to-sky-700 shadow-sky-200',                 // Engineering
@@ -45,6 +48,7 @@ const VALID_MODULES = ['q', 'd', 's', 'h'];
 // COMPONENT: CORE QDSH RING CONTAINER (LIVE DATA)
 // ─────────────────────────────────────────────
 const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails }) => {
+  const { t } = useTranslation();
   // Defensive fallbacks to gracefully handle 0 entries or loading cycles smoothly
   const alertPercent = liveMetrics ? Number(liveMetrics.alertPercent ?? 0) : 0;
   const successPercent = liveMetrics ? Number(liveMetrics.successPercent ?? 0) : 0;
@@ -67,23 +71,23 @@ const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails
     >
       <div className="text-center w-full">
         <h3 className={`text-base font-black uppercase tracking-wider ${total === 0 ? 'text-slate-400' : mod.text}`}>
-          {mod.label} Overview
+          {t('modules.' + mod.key)} {t('dashboard.overview')}
         </h3>
-        <p className="text-[10px] font-bold text-slate-400 uppercase">Operational Pillar</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase">{t('dashboard.operationalPillar')}</p>
       </div>
 
       {/* Circle Metric Display Frame */}
       <div className="relative w-40 h-40 flex items-center justify-center bg-slate-50 rounded-full shadow-inner border border-slate-100">
         {loading ? (
           <div className="absolute text-slate-400 text-xs font-bold uppercase animate-pulse">
-            Calculating...
+            {t('dashboard.calculating')}
           </div>
         ) : (
           <div className="absolute text-center z-10">
             <span className={`text-4xl font-black ${total === 0 ? 'text-slate-400' : mod.text}`}>{mod.letter}</span>
             <div className="text-[10px] font-black text-slate-700 tracking-tighter mt-1 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-100">
               {total === 0 ? (
-                <span className="text-slate-400">Empty</span>
+                <span className="text-slate-400">{t('dashboard.empty')}</span>
               ) : (
                 <>
                   <span className="text-emerald-500">{successPercent}%</span> / <span className="text-orange-500">{alertPercent}%</span>
@@ -140,12 +144,12 @@ const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails
           onClick={(e) => {
             e.stopPropagation();
             if (totalSuccess > 0) {
-              onViewDetails(`${mod.label} - Success Logs`, 'success', liveMetrics?.successList || [], 'emerald');
+              onViewDetails(`${t('modules.' + mod.key)} - ${t('dashboard.successLogs')}`, 'success', liveMetrics?.successList || [], 'emerald');
             }
           }}
           className={`border-r border-slate-200/60 p-1 transition-colors rounded-l-xl ${totalSuccess > 0 ? 'hover:bg-slate-100 cursor-pointer' : ''}`}
         >
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Success Logs</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.successLogs')}</p>
           <p className={`text-base font-black mt-0.5 ${totalSuccess === 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
             {loading ? '...' : totalSuccess}
           </p>
@@ -154,12 +158,12 @@ const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails
           onClick={(e) => {
             e.stopPropagation();
             if (totalAlerts > 0) {
-              onViewDetails(`${mod.label} - Alert Flags`, 'alert', liveMetrics?.alertsList || [], 'orange');
+              onViewDetails(`${t('modules.' + mod.key)} - ${t('dashboard.alertFlags')}`, 'alert', liveMetrics?.alertsList || [], 'orange');
             }
           }}
           className={`p-1 transition-colors rounded-r-xl ${totalAlerts > 0 ? 'hover:bg-slate-100 cursor-pointer' : ''}`}
         >
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Alert Flags</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.alertFlags')}</p>
           <p className={`text-base font-black mt-0.5 ${totalAlerts === 0 ? 'text-slate-400' : 'text-orange-600'}`}>
             {loading ? '...' : totalAlerts}
           </p>
@@ -167,7 +171,7 @@ const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails
       </div>
 
       <div className="w-full text-center text-[10px] font-black text-slate-400 bg-slate-50 hover:bg-slate-900 hover:text-white px-4 py-2 rounded-xl uppercase tracking-wider transition-all">
-        View Departments →
+        {t('dashboard.viewDepartments')} →
       </div>
     </motion.div>
   );
@@ -178,6 +182,7 @@ const AgginementRingCard = ({ mod, onSelect, liveMetrics, loading, onViewDetails
 // ─────────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('overall'); // 'overall' or 'YYYY-MM'
@@ -289,10 +294,10 @@ const Dashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
         <div className="flex-1">
           <h1 className="text-2xl lg:text-4xl font-black text-slate-800 uppercase tracking-tighter">
-            Operational Management Hub
+            {t('dashboard.hubTitle')}
           </h1>
           <p className="text-slate-500 text-xs lg:text-sm font-bold uppercase tracking-widest mt-1">
-            Global Enterprise Health Monitoring Indicators (Live Database Synced)
+            {t('dashboard.hubSubtitle')}
           </p>
         </div>
 
@@ -355,7 +360,7 @@ const Dashboard = () => {
 
             {/* Right: Stats and Title */}
             <div className="flex-1 flex flex-col justify-center">
-              <h3 className="text-slate-400 font-black text-[8px] uppercase tracking-[0.2em] mb-0.5">Overall Yield</h3>
+              <h3 className="text-slate-400 font-black text-[8px] uppercase tracking-[0.2em] mb-0.5">{t('dashboard.overallYield')}</h3>
               <div className="flex flex-col gap-0.5">
                 <div 
                   onClick={() => {
@@ -374,7 +379,7 @@ const Dashboard = () => {
                   className={`flex items-center gap-1.5 text-[11px] font-black uppercase ${totalSuccess === 0 ? 'text-slate-400' : 'text-emerald-600 cursor-pointer hover:underline'}`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${totalSuccess === 0 ? 'bg-slate-300' : 'bg-emerald-500'}`}></span>
-                  <span>{loading ? '...' : totalSuccess} Green</span>
+                  <span>{loading ? '...' : totalSuccess} {t('dashboard.green')}</span>
                 </div>
                 <div 
                   onClick={() => {
@@ -393,7 +398,7 @@ const Dashboard = () => {
                   className={`flex items-center gap-1.5 text-[11px] font-black uppercase ${totalAlerts === 0 ? 'text-slate-400' : 'text-orange-600 cursor-pointer hover:underline'}`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${totalAlerts === 0 ? 'bg-slate-300' : 'bg-orange-500'}`}></span>
-                  <span>{loading ? '...' : totalAlerts} Red</span>
+                  <span>{loading ? '...' : totalAlerts} {t('dashboard.red')}</span>
                 </div>
               </div>
             </div>
@@ -408,7 +413,7 @@ const Dashboard = () => {
               onClick={() => setShowMonthDropdown(!showMonthDropdown)}
               className="w-full py-1.5 px-2 bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 text-xs font-black uppercase tracking-wider text-slate-700 rounded-lg flex items-center justify-between transition-all"
             >
-              <span>Period: {getSelectedMonthLabel()}</span>
+              <span>{t('dashboard.period')}: {getSelectedMonthLabel()}</span>
               <span className="text-slate-400 text-[8px]">▼</span>
             </button>
             
@@ -425,7 +430,7 @@ const Dashboard = () => {
                       : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
-                  Overall (12m)
+                  {t('dashboard.overall12m')}
                 </button>
                 <div className="h-px bg-slate-100 my-0.5"></div>
                 {months.map(m => (
@@ -452,8 +457,8 @@ const Dashboard = () => {
         <div className="hidden md:flex items-center gap-5 bg-white px-6 py-4 rounded-2xl border border-slate-100 shadow-sm">
           <img src={PivotPathLogo} alt="PivotPath Logo" className="w-20 h-20 object-contain rounded-xl" />
           <div>
-            <h3 className="text-slate-900 font-bold text-sm">PivotPath Workspace</h3>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Active Connectivity</p>
+            <h3 className="text-slate-900 font-bold text-sm">{t('dashboard.workspace')}</h3>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{t('dashboard.connectivity')}</p>
           </div>
         </div>
       </div>
@@ -463,7 +468,7 @@ const Dashboard = () => {
       {/* PRIMARY MODULE KPI TRACKERS SECTIONS */}
       <div className="mb-6 ">
         <span className="text-[10px] lg:text-xs font-black uppercase tracking-[0.3em] text-slate-400 block mb-5">
-          Core Performance Pillars
+          {t('dashboard.corePillars')}
         </span>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {MODULES.map((mod) => (
@@ -612,6 +617,7 @@ const Dashboard = () => {
 const PillarDepartmentsPage = () => {
   const { module } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const currentModule = MODULES.find(m => m.key === module) || { label: module?.toUpperCase(), text: 'text-slate-700' };
 
@@ -624,14 +630,14 @@ const PillarDepartmentsPage = () => {
               onClick={() => navigate('/')}
               className="text-xs font-bold text-slate-400 hover:text-slate-900 mb-2 transition-colors block"
             >
-              ← Return Dashboard Focus
+              ← {t('dashboard.returnDashboard', 'Return Dashboard Focus')}
             </button>
             <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-800 uppercase flex items-center gap-2">
-              <span className={`${currentModule.text}`}>{currentModule.label}</span> Departments Matrix
+              <span className={`${currentModule.text}`}>{t('modules.' + currentModule.key, currentModule.label)}</span> {t('dashboard.departmentsMatrix', 'Departments Matrix')}
             </h1>
           </div>
           <span className="px-4 py-2 bg-slate-100 rounded-xl text-slate-500 text-xs font-bold uppercase tracking-wider">
-            Scope: Active Sub-Sectors
+            {t('dashboard.scopeSubSectors', 'Scope: Active Sub-Sectors')}
           </span>
         </div>
 
@@ -651,12 +657,12 @@ const PillarDepartmentsPage = () => {
                   {dept.short}
                 </div>
                 <h2 className="text-sm lg:text-base font-black leading-tight uppercase tracking-tight line-clamp-2">
-                  {dept.name}
+                  {t('departments.' + dept.key, dept.name)}
                 </h2>
               </div>
 
               <div className="flex items-center justify-between relative z-10">
-                <span className="text-[9px] font-bold uppercase tracking-wider bg-black/10 px-2 py-1 rounded-md">Open Tracker</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-black/10 px-2 py-1 rounded-md">{t('dashboard.openTracker', 'Open Tracker')}</span>
                 <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs group-hover:translate-x-1 transition-transform">→</div>
               </div>
               <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -mr-8 -mt-8" />
@@ -730,6 +736,8 @@ function App() {
           <Route path="/hr" element={user ? <HR /> : <Navigate to="/login" />} />
           <Route path="/monitor" element={user ? <QDSHIMonitor /> : <Navigate to="/login" />} />
           <Route path="/plant-dashboard" element={user ? <PlantDashboard /> : <Navigate to="/login" />} />
+          <Route path="/forecast" element={user ? <PredictiveDashboard /> : <Navigate to="/login" />} />
+          <Route path="/track" element={user ? <PivotPathRoadmap /> : <Navigate to="/login" />} />
           <Route path="/:dept" element={<DeptRoute user={user} />} />
           <Route path="/:dept/:module" element={<ShiftPickerRoute user={user} />} />
           <Route path="/shift/:shift/:dept/:module" element={<ModuleRoute user={user} />} />

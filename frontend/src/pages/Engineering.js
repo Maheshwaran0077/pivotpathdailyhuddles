@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -23,27 +24,22 @@ const ENG_ROWS = [
   { category: 'Electrical & Energy Monitoring', kpiMetric: 'Power Consumption (Yesterday)' },
   { category: 'Water Management',               kpiMetric: 'Water Consumption - Tanker Water (Yesterday)' },
   { category: 'Water Management',               kpiMetric: 'Wastewater Recycled (ETP/STP)' },
-  { category: 'Calibration & Instrumentation',  kpiMetric: 'Critical Equipment Calibration Due (14 days)' },
-  { category: 'Calibration & Instrumentation',  kpiMetric: 'Balance / Temp. / Pressure Gauge Calibration Status' },
-  { category: 'Project Work & Modifications',   kpiMetric: 'Project/Capex Job Progress (Yesterday)' },
-  { category: 'Project Work & Modifications',   kpiMetric: 'Layout / Equipment Mod Changes' },
-  { category: 'Safety Compliance',              kpiMetric: 'Permit to Work Issued' },
-  { category: 'Safety Compliance',              kpiMetric: 'ELCB / MCC Panel Inspection (Daily)' },
-  { category: 'Safety Compliance',              kpiMetric: 'PPE Compliance of Technicians' },
-  { category: 'Manpower & Resources',           kpiMetric: 'Engineers / Technicians Present' },
-  { category: 'Manpower & Resources',           kpiMetric: 'AMC / Contractor Support Attendance' },
-  { category: 'GMP / Quality Compliance',       kpiMetric: 'Engineering Logbook Updated' },
-  { category: 'GMP / Quality Compliance',       kpiMetric: 'Open Audit Points (Engg.)' },
-  { category: 'Documentation & Reporting',      kpiMetric: 'Daily Utility Logs Updated' },
-  { category: 'Documentation & Reporting',      kpiMetric: 'Daily Work Completion Report Shared' },
+  { category: 'Calibration Status',             kpiMetric: 'Equipment Calibration Overdue (Count)' },
+  { category: 'Calibration Status',             kpiMetric: 'Instrument Calibration Overdue (Count)' },
+  { category: 'Spare Parts Management',         kpiMetric: 'Critical Spares Stock-out Count' },
+  { category: 'Spare Parts Management',         kpiMetric: 'Inventory Value of Spares' },
+  { category: 'Training & BBS',                 kpiMetric: 'Toolbox Talk Conducted' },
+  { category: 'Training & BBS',                 kpiMetric: 'Unsafe Act / Unsafe Condition reported' },
+  { category: 'Audits & Compliance',           kpiMetric: 'Internal Audit/Round Pending points' },
+  { category: 'Audits & Compliance',           kpiMetric: 'External Visit/Audit observations pending' },
 ];
 
 const COLS = [
-  { key: 'targetValue', label: 'Target' },
-  { key: 'actualValue', label: 'Actual' },
-  { key: 'statusRag',   label: 'Status (RAG)', isRag: true },
-  { key: 'remarks',     label: 'Remarks / Actions', wide: true },
-  { key: 'actionOwner', label: 'Action Owner' },
+  { key: 'targetValue',  label: 'Target' },
+  { key: 'actualValue',  label: 'Actual' },
+  { key: 'statusRag',    label: 'Status (RAG)', isRag: true },
+  { key: 'remarks',      label: 'Remarks / Action Items', wide: true },
+  { key: 'actionOwner',  label: 'Action Owner' },
   { key: 'targetDate',   label: 'Target Date', isDate: true },
   { key: 'actionStatus', label: 'Status' },
 ];
@@ -72,12 +68,12 @@ const ragStyle = (rag) => {
 };
 
 const downloadCSV = (entries, shift, date) => {
-  const headers = ['Category', 'KPI / Metric', 'Target', 'Actual', 'Status (RAG)', 'Remarks / Actions', 'Action Owner', 'Target Date', 'Status'];
+  const headers = ['Category', 'KPI / Metric', 'Target', 'Actual', 'Status (RAG)', 'Remarks / Action Items', 'Action Owner', 'Target Date', 'Status'];
   const rows = ENG_ROWS.map((row, i) => [
     row.category, row.kpiMetric,
     entries[i]?.targetValue || '', entries[i]?.actualValue || '',
-    entries[i]?.statusRag   || '', entries[i]?.remarks     || '',
-    entries[i]?.actionOwner || '', entries[i]?.targetDate  || '',
+    entries[i]?.statusRag   || '', entries[i]?.remarks      || '',
+    entries[i]?.actionOwner || '', entries[i]?.targetDate   || '',
     entries[i]?.actionStatus || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -90,7 +86,7 @@ const downloadCSV = (entries, shift, date) => {
 const downloadAllCSV = async (date) => {
   const shifts = ['1', '2', '3'];
   const resultRows = [];
-  const headers = ['Shift', 'Employee ID', 'Employee Name', 'Category', 'KPI / Metric', 'Target', 'Actual', 'Status (RAG)', 'Remarks / Actions', 'Action Owner', 'Target Date', 'Status'];
+  const headers = ['Shift', 'Employee ID', 'Employee Name', 'Category', 'KPI / Metric', 'Target', 'Actual', 'Status (RAG)', 'Remarks / Action Items', 'Action Owner', 'Target Date', 'Status'];
 
   const responses = await Promise.all(shifts.map(async s => {
     try {
@@ -135,6 +131,7 @@ const downloadAllCSV = async (date) => {
 export default function Engineering() {
   const navigate  = useNavigate();
   const reportRef = useRef(null);
+  const { t } = useTranslation();
   const user      = JSON.parse(localStorage.getItem('userInfo') || 'null');
   const isSupervisor = user?.role === 'supervisor';
   const isSuperAdmin = user?.role === 'superadmin';
@@ -232,7 +229,7 @@ export default function Engineering() {
             ← Back to Dashboard
           </button>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">
-            Engineering & Works Management
+            {t('departments.engineering', 'Engineering & Works Management')}
           </h1>
           <p className="text-white/60 text-sm font-medium">Daily Works Management Board</p>
         </motion.div>

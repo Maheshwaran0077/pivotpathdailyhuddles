@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -23,25 +24,22 @@ const HR_ROWS = [
   { category: 'OHC - Health & Wellness',        kpiMetric: 'Injury / Illness Cases (Minor) - Today' },
   { category: 'OHC - Health & Wellness',        kpiMetric: 'Casualty Cases (Major) - Today' },
   { category: 'OHC - Health & Wellness',        kpiMetric: 'Periodic Medical Checks Completed (Monthly)' },
-  { category: 'OHC - Health & Wellness',        kpiMetric: 'Pre-employment Medical Checks Completed (Today)' },
-  { category: 'L&D & Cultural Engagement',      kpiMetric: 'Training Completion Rate (Monthly)' },
-  { category: 'L&D & Cultural Engagement',      kpiMetric: 'Employee Engagement Score (Quarterly)' },
-  { category: 'L&D & Cultural Engagement',      kpiMetric: 'No. of Participants Attended' },
-  { category: 'Legal & Compliance',             kpiMetric: 'Statutory Compliance Check (Govt.)' },
-  { category: 'Legal & Compliance',             kpiMetric: 'Contract Statutory Compliance Check (Monthly)' },
-  { category: 'Legal & Compliance',             kpiMetric: 'Contract Renewals Due' },
-  { category: 'Legal & Compliance',             kpiMetric: 'Audit NC Closure Status (Monthly)' },
+  { category: 'Training & Development Status',  kpiMetric: 'Toolbox Talk Conducted' },
+  { category: 'Training & Development Status',  kpiMetric: 'Safety Induction Training completed (%)' },
+  { category: 'Training & Development Status',  kpiMetric: 'External training pending (Count)' },
+  { category: 'Audits & Compliance',            kpiMetric: 'Internal Audit/Round Pending points' },
+  { category: 'Audits & Compliance',            kpiMetric: 'External Visit/Audit observations pending' },
 ];
 
 const COLS = [
-  { key: 'plan',       label: 'Plan' },
-  { key: 'actual',     label: 'Actual' },
-  { key: 'percentage', label: '%' },
-  { key: 'statusRag',  label: 'Status (RAG)', isRag: true },
-  { key: 'remarks',    label: 'Remarks / Action Plan', wide: true },
+  { key: 'targetValue',  label: 'Target (Count)' },
+  { key: 'actualValue',  label: 'Actual (Count)' },
+  { key: 'percentage',   label: 'Percentage (%)' },
+  { key: 'statusRag',    label: 'Status (RAG)', isRag: true },
+  { key: 'remarks',      label: 'Remarks / Target Date', wide: true },
 ];
 
-const DEFAULT_ENTRY = { plan: '', actual: '', percentage: '', statusRag: '', remarks: '' };
+const DEFAULT_ENTRY = { targetValue: '', actualValue: '', percentage: '', statusRag: '', remarks: '' };
 
 const computeSpans = (rows) => {
   const result = [];
@@ -65,11 +63,12 @@ const ragStyle = (rag) => {
 };
 
 const downloadCSV = (entries, shift, date) => {
-  const headers = ['Category', 'KPI / Metrics', 'Plan', 'Actual', '%', 'Status (RAG)', 'Remarks / Action Plan'];
+  const headers = ['Category', 'KPI / Metric', 'Target (Count)', 'Actual (Count)', 'Percentage (%)', 'Status (RAG)', 'Remarks / Target Date'];
   const rows = HR_ROWS.map((row, i) => [
     row.category, row.kpiMetric,
-    entries[i]?.plan || '', entries[i]?.actual || '', entries[i]?.percentage || '',
-    entries[i]?.statusRag || '', entries[i]?.remarks || '',
+    entries[i]?.targetValue || '', entries[i]?.actualValue || '',
+    entries[i]?.percentage  || '', entries[i]?.statusRag   || '',
+    entries[i]?.remarks     || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
@@ -81,7 +80,7 @@ const downloadCSV = (entries, shift, date) => {
 const downloadAllCSV = async (date) => {
   const shifts = ['1', '2', '3'];
   const resultRows = [];
-  const headers = ['Shift', 'Employee ID', 'Employee Name', 'Category', 'KPI / Metrics', 'Plan', 'Actual', '%', 'Status (RAG)', 'Remarks / Action Plan'];
+  const headers = ['Shift', 'Employee ID', 'Employee Name', 'Category', 'KPI / Metric', 'Target (Count)', 'Actual (Count)', 'Percentage (%)', 'Status (RAG)', 'Remarks / Target Date'];
 
   const responses = await Promise.all(shifts.map(async s => {
     try {
@@ -105,8 +104,8 @@ const downloadAllCSV = async (date) => {
         empName,
         row.category,
         row.kpiMetric,
-        entry.plan || '',
-        entry.actual || '',
+        entry.targetValue || '',
+        entry.actualValue || '',
         entry.percentage || '',
         entry.statusRag || '',
         entry.remarks || '',
@@ -124,6 +123,7 @@ const downloadAllCSV = async (date) => {
 export default function HR() {
   const navigate  = useNavigate();
   const reportRef = useRef(null);
+  const { t } = useTranslation();
   const user      = JSON.parse(localStorage.getItem('userInfo') || 'null');
   const isSupervisor = user?.role === 'supervisor';
   const isSuperAdmin = user?.role === 'superadmin';
@@ -229,7 +229,9 @@ export default function HR() {
             className="mb-6 px-4 py-1.5 bg-white/10 hover:bg-white/20 transition-colors rounded-full text-white/80 text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-sm">
             ← Back to Dashboard
           </button>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">Human Resources</h1>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase mb-4">
+            {t('departments.hr', 'Human Resources')}
+          </h1>
           <p className="text-white/60 text-sm font-medium">Workforce metrics — Training, hiring, attendance & compliance</p>
         </motion.div>
       </div>
