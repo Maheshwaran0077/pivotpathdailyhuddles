@@ -15,6 +15,18 @@ import { dashboardMetrics as initialData } from '../dashboardData';
 // IST timezone helpers
 const getISTDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const getISTTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+const formatLogTime = (log) => {
+  if (log.time) return log.time;
+  if (log.timestamp) {
+    try {
+      const d = new Date(log.timestamp);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+    } catch (e) {}
+  }
+  return '--';
+};
 
 const MySwal = withReactContent(Swal);
 const API_BASE_URL = `${process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)}/api/metrics`;
@@ -49,8 +61,10 @@ export default function QualityPage() {
   const isSuperAdmin = user?.role === 'superadmin';
   const isSupervisor = user?.role === 'supervisor';
   const userDepts = (user?.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const userShifts = (user?.shift || '').split(',').map(s => s.trim()).filter(Boolean);
   const isAssignedDept = isSuperAdmin || userDepts.includes((dept || '').toLowerCase());
-  const canUpdate = ((isSupervisor && isAssignedDept) || isSuperAdmin) && shift !== 'overall';
+  const isAssignedShift = isSuperAdmin || userShifts.length === 0 || userShifts.includes('NONE') || userShifts.includes(shift);
+  const canUpdate = ((isSupervisor && isAssignedDept && isAssignedShift) || isSuperAdmin) && shift !== 'overall';
 
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(initialData);
@@ -189,7 +203,8 @@ export default function QualityPage() {
       rawDate: customDate,
       reason: resolvedReason,
       deviationType: resolvedReason === "Target Met" ? "" : deviationType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      time: getISTTime()
     };
 
     const idx = updatedLogs.findIndex(log => log.rawDate === customDate);
@@ -228,7 +243,7 @@ export default function QualityPage() {
       }
 
       if (res.ok) {
-        await fetchMetrics();
+        await fetchMetrics(false);
         setIsModalOpen(false);
         setDeviationType("");
         setCustomReason("");
@@ -287,7 +302,8 @@ export default function QualityPage() {
       id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`,
       name: "",
       action: "",
-      time: getISTTime()
+      time: getISTTime(),
+      resolved: false
     };
     if (type === 'staff') setStaffLogs(prev => [newRow, ...prev]);
     else setActivityLogs(prev => [newRow, ...prev]);
@@ -365,8 +381,8 @@ export default function QualityPage() {
     return { successPercent, totalSuccess, totalAlerts, total };
   }, [metrics, viewDate, viewYear]);
 
-  const fetchMetrics = async () => {
-    setLoading(true);
+  const fetchMetrics = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const url = `${API_BASE_URL}?dept=${dept || 'fgmw'}`;
       const response = await fetch(url);
@@ -582,6 +598,7 @@ export default function QualityPage() {
                     {shift === 'overall' && <th className="p-2 text-left">Shift</th>}
                     <th className="p-2 text-left">Reason</th>
                     <th className="p-2 text-left">Deviation</th>
+                    <th className="p-2 text-left">Time</th>
                     <th className="p-2 text-right rounded-tr-xl">Action</th>
                   </tr>
                 </thead>
@@ -603,6 +620,9 @@ export default function QualityPage() {
                         </div>
                       </td>
                       <td className="p-2 font-bold text-slate-500 text-[10px]">{log.deviationType || '--'}</td>
+                      <td className="p-2 font-bold text-slate-500 text-[10px]">
+                        {log.reason === 'Target Met' ? '--' : formatLogTime(log)}
+                      </td>
                       <td className="p-2 text-right">
                         {isSuperAdmin && (
                           <button onClick={() => handleDeleteLog(log.rawDate)} className="text-red-300 hover:text-red-600 p-1 transition-colors"><Trash2 size={16} /></button>
@@ -610,7 +630,7 @@ export default function QualityPage() {
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold uppercase italic tracking-widest">No alerts recorded</td></tr>
+                    <tr><td colSpan={6} className="p-12 text-center text-slate-300 font-bold uppercase italic tracking-widest">No alerts recorded</td></tr>
                   )}
                 </tbody>
               </table>
@@ -687,6 +707,7 @@ export default function QualityPage() {
             icon={<User size={14} className="text-emerald-500" />}
             logs={staffLogs}
             isSuperAdmin={isSuperAdmin}
+            canUpdate={canUpdate}
             onAdd={() => addRow('staff')}
             onUpdate={handleUpdateStaff}
             onRemove={(i) => removeRow('staff', i)}
@@ -752,7 +773,7 @@ export default function QualityPage() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ letter: 'Q', shift: shift || '1', dept: dept || 'fgmw', logs: updatedActivity, empId: user?.employeeId, empName: user?.name, userRole: user?.role })
                 });
-                await fetchMetrics();
+                await fetchMetrics(false);
                 notifySuccess(isResolved ? "Issue resolved & synchronized" : "Issue marked as pending");
               } catch (e) {
                 notifyError("Sync failed");
@@ -766,6 +787,7 @@ export default function QualityPage() {
             icon={<Activity size={14} className="text-blue-500" />}
             logs={activityLogs}
             isSuperAdmin={isSuperAdmin}
+            canUpdate={canUpdate}
             onAdd={() => addRow('activity')}
             onUpdate={handleUpdateActivity}
             onRemove={(i) => removeRow('activity', i)}
@@ -870,7 +892,7 @@ export default function QualityPage() {
 
 // --- SUB-COMPONENTS ---
 
-const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRemove, onChange, loading, theme, onToggleResolve, onShowDetails }) => {
+const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRemove, onChange, loading, theme, onToggleResolve, onShowDetails, canUpdate }) => {
   const themeStyles = {
     emerald: {
       bg: 'bg-emerald-50/30',
@@ -903,6 +925,14 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
           {icon}
           <h3 className={`font-black text-[10px] ${style.text} tracking-widest uppercase`}>{title}</h3>
         </div>
+        {canUpdate && onAdd && (
+          <button
+            onClick={handleAddRow}
+            className={`${style.btn} text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase shadow transition-all active:scale-95`}
+          >
+            + Add Row
+          </button>
+        )}
       </div>
 
       <div className="px-4 py-2 bg-slate-50 flex gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 select-none">
@@ -916,7 +946,7 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
 
       <div className="overflow-y-auto flex-1 p-4 divide-y divide-slate-100 custom-scrollbar" data-log-table={title}>
         {logs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-[10px] font-bold py-10">No records found. Click "Add Row" to create one.</div>
+          <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-[10px] font-bold py-10">No records found. Click "+ Add Row" to create one.</div>
         ) : logs.map((log, i) => {
           const isStaff = type === 'staff';
           const isResolved = log.resolved === true;
@@ -935,18 +965,21 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
               className={`py-2.5 flex gap-4 items-center group rounded-lg transition-all px-2 cursor-pointer ${rowBgClass}`}
             >
               <input
-                className="w-20 text-[10px] font-bold text-slate-500 bg-slate-100/50 p-1.5 rounded border border-transparent focus:border-slate-300 outline-none transition-colors"
+                disabled={!canUpdate}
+                className="w-20 text-[10px] font-bold text-slate-500 bg-slate-100/50 p-1.5 rounded border border-transparent focus:border-slate-300 outline-none transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
                 value={isStaff ? (log.date || log.rawDate || '') : log.id}
                 onChange={(e) => onChange(i, isStaff ? 'date' : 'id', e.target.value)}
               />
               <input
-                className="flex-1 text-[11px] font-bold text-slate-700 outline-none border-b border-transparent focus:border-emerald-300 transition-colors bg-transparent animate-fade-in"
+                disabled={!canUpdate}
+                className="flex-1 text-[11px] font-bold text-slate-700 outline-none border-b border-transparent focus:border-emerald-300 transition-colors bg-transparent animate-fade-in disabled:text-slate-400 disabled:cursor-not-allowed"
                 placeholder={isStaff ? "Assigned Name" : "Name/Description"}
                 value={isStaff ? (log.assignedName || log.name || '') : log.name}
                 onChange={(e) => onChange(i, isStaff ? 'assignedName' : 'name', e.target.value)}
               />
               <input
-                className="flex-1 text-[10px] font-medium text-slate-500 outline-none border-b border-transparent focus:border-emerald-300 bg-transparent animate-fade-in"
+                disabled={!canUpdate}
+                className="flex-1 text-[10px] font-medium text-slate-500 outline-none border-b border-transparent focus:border-emerald-300 bg-transparent animate-fade-in disabled:text-slate-400 disabled:cursor-not-allowed"
                 placeholder={isStaff ? "Action Status" : "Action Taken"}
                 value={log.action}
                 onChange={(e) => onChange(i, 'action', e.target.value)}
@@ -961,8 +994,9 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
                     {isResolved ? 'Resolved' : 'Pending'}
                   </span>
                   <button
+                    disabled={!canUpdate}
                     onClick={() => onToggleResolve(i, !isResolved)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
+                    className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : ''} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
                   >
                     <div className="bg-white w-4 h-4 rounded-full shadow-md"></div>
                   </button>

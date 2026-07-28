@@ -211,6 +211,17 @@ const ActionTable = ({ actions }) => {
     );
 };
 
+const parseRawDate = (rawDate) => {
+    if (!rawDate) return null;
+    const parts = rawDate.split('-');
+    if (parts.length !== 3) return null;
+    return {
+        year: Number(parts[0]),
+        monthIdx: Number(parts[1]) - 1,
+        date: Number(parts[2])
+    };
+};
+
 export default function QDSHIMonitor() {
     const [dept, setDept] = useState('pop');
     const [selectedDateStr, setSelectedDateStr] = useState(() => {
@@ -230,10 +241,14 @@ export default function QDSHIMonitor() {
         'pro': 'Production', 'spp': 'Secondary Packing', 'fac': 'Facilities'
     };
 
-    const targetDate = new Date(`${selectedDateStr}-01`);
-    const currentMonthIdx = targetDate.getMonth();
-    const currentYear = targetDate.getFullYear();
-    const currentMonthLong = targetDate.toLocaleString('default', { month: 'long' });
+    const dateParts = selectedDateStr.split('-');
+    const currentYear = Number(dateParts[0]);
+    const currentMonthIdx = Number(dateParts[1]) - 1;
+    const MONTHS_MAP = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+    const currentMonthLong = MONTHS_MAP[currentMonthIdx];
 
     const [activeCarouselShift, setActiveCarouselShift] = useState('overall');
     const [isHovered, setIsHovered] = useState(false);
@@ -314,9 +329,9 @@ export default function QDSHIMonitor() {
         qLogs.push(...(qData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     qLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 const currentVal = qRows[dayIdx][0];
                 const isDeviation = log.reason !== 'Target Met';
@@ -341,9 +356,9 @@ export default function QDSHIMonitor() {
         dLogs.push(...(dData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     dLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 dRows[dayIdx].plan += Number(log.planned) || 0;
                 dRows[dayIdx].actual += Number(log.dispatched) || 0;
@@ -362,9 +377,9 @@ export default function QDSHIMonitor() {
         sLogs.push(...(sData.shifts?.[activeCarouselShift]?.issueLogs || []));
     }
     sLogs.forEach(log => {
-        const d = new Date(log.rawDate);
-        if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-            const dayIdx = d.getDate() - 1;
+        const parsed = parseRawDate(log.rawDate);
+        if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+            const dayIdx = parsed.date - 1;
             if (dayIdx >= 0 && dayIdx < 31) {
                 if (!sRows[dayIdx]) sRows[dayIdx] = { nm: 0, ua: 0, lti: 0 };
                 sRows[dayIdx].nm += Number(log.numNearMiss) || 0;
@@ -453,9 +468,9 @@ export default function QDSHIMonitor() {
         const qRowsLocal = Array.from({length: 31}, () => (['']));
         const qLogsLocal = qData.shifts?.[shiftVal]?.issueLogs || [];
         qLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     qRowsLocal[dayIdx][0] = log.reason === 'Target Met' ? '✅' : 
                                       log.deviationType === 'Human Error' ? 'HE' : 
@@ -467,9 +482,9 @@ export default function QDSHIMonitor() {
         const dRowsLocal = Array.from({length: 31}, () => ({ plan: 0, actual: 0 }));
         const dLogsLocal = dData.shifts?.[shiftVal]?.issueLogs || [];
         dLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     dRowsLocal[dayIdx].plan += Number(log.planned) || 0;
                     dRowsLocal[dayIdx].actual += Number(log.dispatched) || 0;
@@ -480,9 +495,9 @@ export default function QDSHIMonitor() {
         const sRowsLocal = Array.from({length: 31}, () => null);
         const sLogsLocal = sData.shifts?.[shiftVal]?.issueLogs || [];
         sLogsLocal.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
-                const dayIdx = d.getDate() - 1;
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
+                const dayIdx = parsed.date - 1;
                 if (dayIdx >= 0 && dayIdx < 31) {
                     if (!sRowsLocal[dayIdx]) sRowsLocal[dayIdx] = { nm: 0, ua: 0, lti: 0 };
                     sRowsLocal[dayIdx].nm += Number(log.numNearMiss) || 0;
@@ -599,8 +614,8 @@ export default function QDSHIMonitor() {
         // 1. Quality (Q)
         const qLogs = qData.shifts?.[shiftVal]?.issueLogs || [];
         qLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 if (log.reason === 'Target Met') totalSuccess++;
                 else totalAlerts++;
             }
@@ -609,8 +624,8 @@ export default function QDSHIMonitor() {
         // 2. Delivery (D)
         const dLogs = dData.shifts?.[shiftVal]?.issueLogs || [];
         dLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 const plan = Number(log.planned) || 0;
                 const actual = Number(log.dispatched) || 0;
                 if (plan > 0 || actual > 0) {
@@ -623,8 +638,8 @@ export default function QDSHIMonitor() {
         // 3. Safety (S)
         const sLogs = sData.shifts?.[shiftVal]?.issueLogs || [];
         sLogs.forEach(log => {
-            const d = new Date(log.rawDate);
-            if (d.getMonth() === currentMonthIdx && d.getFullYear() === currentYear) {
+            const parsed = parseRawDate(log.rawDate);
+            if (parsed && parsed.monthIdx === currentMonthIdx && parsed.year === currentYear) {
                 if (log.numNearMiss > 0 || log.numUnsafeActs > 0 || log.numSafetyIncidents > 0) {
                     totalAlerts++;
                 } else {
@@ -667,8 +682,8 @@ export default function QDSHIMonitor() {
             ['1', '2', '3'].forEach(shiftVal => {
                 const logs = metric.shifts?.[shiftVal]?.issueLogs || [];
                 logs.forEach(log => {
-                    const d = new Date(log.rawDate);
-                    if (d.getFullYear() === currentYear) {
+                    const parsed = parseRawDate(log.rawDate);
+                    if (parsed && parsed.year === currentYear) {
                         if (metric.letter === 'Q') {
                             if (log.reason === 'Target Met') totalSuccess++;
                             else totalAlerts++;

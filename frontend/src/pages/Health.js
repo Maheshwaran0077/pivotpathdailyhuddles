@@ -26,11 +26,13 @@ const Health = () => {
   }, []);
 
   const user        = JSON.parse(localStorage.getItem('userInfo')) || { role: 'supervisor' };
-  const isSuperAdmin = user.role === 'superadmin';
-  const isSupervisor = user.role === 'supervisor';
-  const userDepts    = (user.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isSupervisor = user?.role === 'supervisor';
+  const userDepts    = (user?.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const userShifts   = (user?.shift || '').split(',').map(s => s.trim()).filter(Boolean);
   const isAssignedDept = isSuperAdmin || userDepts.includes((dept || '').toLowerCase());
-  const canUpdate    = ((isSupervisor && isAssignedDept) || isSuperAdmin) && shift !== 'overall';
+  const isAssignedShift = isSuperAdmin || userShifts.length === 0 || userShifts.includes('NONE') || userShifts.includes(shift);
+  const canUpdate    = ((isSupervisor && isAssignedDept && isAssignedShift) || isSuperAdmin) && shift !== 'overall';
   const reportRef    = useRef(null);
 
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
@@ -74,9 +76,9 @@ const Health = () => {
       try {
         if (shift === 'overall') {
           const [h1, h2, h3] = await Promise.all([
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '1' } }),
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '2' } }),
-            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: '3' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '1' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '2' } }),
+            axios.get(`${API}/api/health`, { params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: '3' } }),
           ]);
           
           const days1 = h1.data?.days || [];
@@ -127,7 +129,7 @@ const Health = () => {
           setAllMonthsData(prev => ({ ...prev, [currentMonthName]: combinedDays }));
         } else {
           const { data } = await axios.get(`${API}/api/health`, {
-            params: { month: currentMonthName, year: currentYear, dept: dept || 'fg', shift: shift || '1' },
+            params: { month: currentMonthName, year: currentYear, dept: dept || 'fgmw', shift: shift || '1' },
           });
           if (data?.days?.length > 0) {
             setAllMonthsData(prev => ({ ...prev, [currentMonthName]: data.days }));
@@ -155,7 +157,7 @@ const Health = () => {
   // Fetch time lock for this dept+shift
   useEffect(() => {
     if (shift !== 'overall') {
-      fetch(`${API}/api/timelock/${dept || 'fg'}/${shift || '1'}`)
+      fetch(`${API}/api/timelock/${dept || 'fgmw'}/${shift || '1'}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => setTimeLock(d))
         .catch(() => {});
@@ -169,7 +171,7 @@ const Health = () => {
     const fetchMetrics = async () => {
       try {
         if (shift === 'overall') {
-          const response = await fetch(`${API}/api/metrics?dept=${dept || 'fg'}`);
+          const response = await fetch(`${API}/api/metrics?dept=${dept || 'fgmw'}`);
           const dbData = await response.json();
           if (dbData?.length > 0) {
             const hLive = dbData.find(d => d.letter === 'H');
@@ -186,7 +188,7 @@ const Health = () => {
             }
           }
         } else {
-          const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fg'}`;
+          const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fgmw'}`;
           const response = await fetch(url);
           const dbData = await response.json();
           if (dbData?.length > 0) {
@@ -293,7 +295,7 @@ const Health = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          letter: 'H', shift: shift || '1', dept: dept || 'fg',
+          letter: 'H', shift: shift || '1', dept: dept || 'fgmw',
           logs: type === 'staff' ? staffLogs : activityLogs,
           empId: user?.employeeId,
           empName: user?.name,
@@ -318,7 +320,7 @@ const Health = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            letter: 'H', shift: shift || '1', dept: dept || 'fg', 
+            letter: 'H', shift: shift || '1', dept: dept || 'fgmw', 
             logs: updatedLogs,
             empId: user?.employeeId,
             empName: user?.name,

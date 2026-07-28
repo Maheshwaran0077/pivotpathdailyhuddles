@@ -31,7 +31,7 @@ const DEPT_BG = {
   pink: 'from-pink-500 to-pink-700 shadow-pink-200',             // POP
   teal: 'from-teal-500 to-teal-700 shadow-teal-200',             // QCMAD
   yellow: 'from-yellow-400 to-yellow-600 shadow-yellow-200',     // PRO
-  red: 'from-red-500 to-red-700 shadow-red-200',                 // SPP
+  red: 'from-red-500 to-red-700 shadow-red-200',                 // SPP 
   cyan: 'from-cyan-500 to-cyan-700 shadow-cyan-200',             // FAC
   lime: 'from-lime-500 to-lime-700 shadow-lime-200',             // EHS
   sky: 'from-sky-500 to-sky-700 shadow-sky-200',                 // Engineering

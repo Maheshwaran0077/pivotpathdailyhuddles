@@ -40,8 +40,10 @@ const SafetyPage = () => {
   const isSuperAdmin = user?.role === 'superadmin';
   const isSupervisor = user?.role === 'supervisor';
   const userDepts = (user?.department || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const userShifts = (user?.shift || '').split(',').map(s => s.trim()).filter(Boolean);
   const isAssignedDept = isSuperAdmin || userDepts.includes((dept || '').toLowerCase());
-  const canUpdate = ((isSupervisor && isAssignedDept) || isSuperAdmin) && shift !== 'overall';
+  const isAssignedShift = isSuperAdmin || userShifts.length === 0 || userShifts.includes('NONE') || userShifts.includes(shift);
+  const canUpdate = ((isSupervisor && isAssignedDept && isAssignedShift) || isSuperAdmin) && shift !== 'overall';
   const reportRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ const SafetyPage = () => {
   const [deleteConfig, setDeleteConfig] = useState({ isOpen: false, type: null, index: null, rawDate: null });
 
   useEffect(() => {
-    fetch(`${API}/api/timelock/${dept || 'fg'}/${shift || '1'}`)
+    fetch(`${API}/api/timelock/${dept || 'fgmw'}/${shift || '1'}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => setTimeLock(d))
       .catch(() => {});
@@ -175,7 +177,7 @@ const SafetyPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ letter: 'S', shift: shift || '1', dept: dept || 'fgmw', logs: updatedActivity, empId: user?.employeeId, empName: user?.name, userRole: user?.role })
       });
-      await fetchMetrics();
+      await fetchMetrics(false);
     } catch (e) {
       alert("Synchronization failed.");
     }
@@ -203,9 +205,10 @@ const SafetyPage = () => {
     return { successPercent, totalSuccess, totalAlerts, total };
   }, [metrics, viewDate, viewYear]);
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
-      const url = `${API_BASE_URL}?dept=${dept || 'fg'}`;
+      const url = `${API_BASE_URL}?dept=${dept || 'fgmw'}`;
       const response = await fetch(url);
       const dbData = await response.json();
       if (dbData?.length > 0) {
@@ -383,7 +386,7 @@ const SafetyPage = () => {
       }
 
       if (res.ok) {
-        await fetchMetrics();
+        await fetchMetrics(false);
         setIsModalOpen(false);
         setNumSafetyIncidents(0);
         setNumNearMiss(0);
@@ -410,7 +413,7 @@ const SafetyPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          letter: 'S', shift: shift || '1', dept: dept || 'fg',
+          letter: 'S', shift: shift || '1', dept: dept || 'fgmw',
           logs: type === 'staff' ? staffLogs : activityLogs,
           empId: user?.employeeId,
           empName: user?.name,
@@ -437,7 +440,7 @@ const SafetyPage = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            letter: 'S', shift: shift || '1', dept: dept || 'fg', 
+            letter: 'S', shift: shift || '1', dept: dept || 'fgmw', 
             logs: updatedLogs,
             empId: user?.employeeId,
             empName: user?.name,
@@ -458,7 +461,7 @@ const SafetyPage = () => {
             body: JSON.stringify({
               letter: 'S',
               shift: shift || '1',
-              dept: dept || 'fg',
+              dept: dept || 'fgmw',
               issueLogs: updatedIssueLogs,
               empId: user?.employeeId,
               empName: user?.name,
@@ -466,7 +469,7 @@ const SafetyPage = () => {
             }),
           });
           if (res.ok) {
-            await fetchMetrics();
+            await fetchMetrics(false);
             MySwal.fire('Deleted!', 'Log has been deleted successfully.', 'success');
           }
         }
@@ -795,22 +798,22 @@ const SafetyPage = () => {
 
         {/* TEAM & STAFF COMPLIANCE and OPERATIONAL LOGS */}
         <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-2">
-          <LogContainer title="Issues & Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsStaffModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="emerald" onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} />
-          <LogContainer title="Actions Safety Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActivityModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="blue" onShowDetails={handleShowActionDetails} />
+          <LogContainer title="Issues & Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsStaffModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="emerald" onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} />
+          <LogContainer title="Actions Safety Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActivityModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="blue" onShowDetails={handleShowActionDetails} canUpdate={canUpdate} />
         </div>
 
       </main>
 
       {/* --- Modals --- */}
       <EntryModal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title="Issues & Compliance" type="staff" data={staffLogs} 
-        onAdd={() => setStaffLogs([{id:"", name:"", action:"", time: getISTTime()}, ...staffLogs])}
+        onAdd={() => setStaffLogs([{id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`, name: "", action: "", time: getISTTime(), resolved: false}, ...staffLogs])}
         onEdit={(i, f, v) => setStaffLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
-        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} />
+        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} />
 
       <EntryModal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Actions Safety Logs" type="activity" data={activityLogs} 
-        onAdd={() => setActivityLogs([{id:"", name:"", action:"", time: getISTTime()}, ...activityLogs])}
+        onAdd={() => setActivityLogs([{id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`, name: "", action: "", time: getISTTime(), resolved: false}, ...activityLogs])}
         onEdit={(i, f, v) => setActivityLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
-        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('activity')} syncing={tableSyncing.activity} onShowDetails={handleShowActionDetails} />
+        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('activity')} syncing={tableSyncing.activity} onShowDetails={handleShowActionDetails} canUpdate={canUpdate} />
 
       {/* Floating All-Shifts CSV download button */}
       <button
@@ -970,7 +973,7 @@ const ChartCard = ({ title, children }) => (
 
 // --- Reusable Log Subcomponents ---
 
-const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleResolve, onShowDetails }) => {
+const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
   const isStaff = type === 'staff';
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -1010,21 +1013,21 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
                     className={`grid ${isStaff ? 'grid-cols-6' : 'grid-cols-5'} py-3 items-center group px-3 sm:px-8 cursor-pointer ${rowBgClass}`}
                   >
                     <input 
-                      disabled={readonly} 
-                      className="text-[10px] font-bold text-slate-500 bg-transparent outline-none truncate mr-1 min-w-0" 
+                      disabled={readonly || !canUpdate} 
+                      className="text-[10px] font-bold text-slate-500 bg-transparent outline-none truncate mr-1 min-w-0 disabled:opacity-75 disabled:cursor-not-allowed" 
                       value={isStaff ? (log.date || log.rawDate || '') : log.id} 
                       onChange={(e) => onEdit && onEdit(i, isStaff ? 'date' : 'id', e.target.value)} 
                     />
                     <input 
-                      disabled={readonly} 
-                      className="text-[10px] font-bold text-slate-700 bg-transparent outline-none truncate mr-1 min-w-0" 
+                      disabled={readonly || !canUpdate} 
+                      className="text-[10px] font-bold text-slate-700 bg-transparent outline-none truncate mr-1 min-w-0 disabled:text-slate-400 disabled:cursor-not-allowed" 
                       value={isStaff ? (log.assignedName || log.name || '') : log.name} 
                       onChange={(e) => onEdit && onEdit(i, isStaff ? 'assignedName' : 'name', e.target.value)} 
                     />
                     <div className="col-span-2 flex items-center gap-1 min-w-0 overflow-hidden">
                       <input 
-                        disabled={readonly} 
-                        className="text-[9px] font-bold text-slate-400 uppercase bg-transparent outline-none min-w-0 truncate flex-1" 
+                        disabled={readonly || !canUpdate} 
+                        className="text-[9px] font-bold text-slate-400 uppercase bg-transparent outline-none min-w-0 truncate flex-1 disabled:text-slate-400 disabled:cursor-not-allowed" 
                         value={log.action} 
                         onChange={(e) => onEdit && onEdit(i, 'action', e.target.value)} 
                       />
@@ -1034,15 +1037,17 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
                     {isStaff && (
                       <div className="flex items-center justify-center gap-1.5 select-none shrink-0">
                         <button
+                          disabled={!canUpdate}
                           onClick={() => onToggleResolve && onToggleResolve(i, !isResolved)}
-                          className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
+                          className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : ''} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
                         >
                           <div className="bg-white w-4 h-4 rounded-full shadow-md"></div>
                         </button>
                         {(isSuperAdmin || !readonly) && (
                           <button 
+                            disabled={!canUpdate}
                             onClick={() => setDeleteConfig && setDeleteConfig({ isOpen: true, type, index: i })} 
-                            className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all hover:bg-rose-50"
+                            className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Trash2 size={13}/>
                           </button>
@@ -1073,7 +1078,7 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
   );
 };
 
-const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, onToggleResolve, onShowDetails }) => {
+const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
   const theme = THEME_STYLES[colorTheme];
   return (
     <div className="bg-white rounded-[2.5rem] shadow-md border-2 border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
@@ -1081,7 +1086,7 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, 
         <h3 className={`font-black text-[11px] uppercase ${theme.text}`}>{title}</h3>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col">
-        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} />
+        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} />
       </div>
       {data.length > 8 && (
         <div className="px-8 py-3 bg-slate-50 border-t border-slate-100 text-center">
@@ -1092,7 +1097,7 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, 
   );
 };
 
-const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig, onToggleResolve, onShowDetails }) => {
+const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
   const tableRef = useRef(null);
   if (!isOpen) return null;
   const theme = THEME_STYLES[type === 'staff' ? 'emerald' : 'blue'];
@@ -1111,10 +1116,12 @@ const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmi
       <div className="bg-white rounded-[2.5rem] w-full max-w-3xl flex flex-col h-[85vh] shadow-2xl">
         <div className={`p-8 border-b flex justify-between items-center ${theme.light}`}>
           <h2 className={`font-black ${theme.text} uppercase text-[12px]`}>{title}</h2>
-          <button onClick={handleAddNewEntry} className={`${theme.bg} text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase shadow-lg transition-all active:scale-95 hover:shadow-xl`}>+ New Entry</button>
+          {canUpdate && (
+            <button onClick={handleAddNewEntry} className={`${theme.bg} text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase shadow-lg transition-all active:scale-95 hover:shadow-xl`}>+ New Entry</button>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto" ref={tableRef}>
-          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} />
+          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} />
         </div>
         <div className="p-8 border-t flex items-center gap-6">
           <button onClick={onClose} className="font-black text-slate-400 text-[10px] uppercase">Discard</button>
