@@ -177,8 +177,11 @@ mongoose.connect(process.env.MONGO_URI)
 // Directs express to stream pre-compiled production UI layers
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 
-// ✅ FIXED: Using a RegExp literal bypasses the strict string parsing constraints of path-to-regexp completely
-app.get(/^\/(?!api).*/, (req, res) => {
+// ✅ Serve React frontend for all non-API paths (Express 4 & 5 compatible)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
