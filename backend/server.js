@@ -178,10 +178,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 // ✅ Serve React frontend for all non-API paths (Express 4 & 5 compatible)
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next();
-  }
+app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
