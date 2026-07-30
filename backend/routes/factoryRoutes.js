@@ -368,7 +368,8 @@ router.get('/forecast', async (req, res) => {
         actual: item.actual
       }));
 
-      const pyResponse = await fetch('http://localhost:5001/predict', {
+      const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+      const pyResponse = await fetch(`${ML_SERVICE_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: payload })
