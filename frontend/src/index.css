@@ -26,3 +26,39 @@ body {
     background-position: 0% 50%;
   }
 }
+
+/* Immersive space-themed gradient and shifting nebular ambient glow */
+.cosmic-glow-bg {
+  background: linear-gradient(180deg, #060814 0%, #0c102b 45%, #0f172a 100%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.cosmic-glow-bg::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 120%;
+  height: 80%;
+  background: radial-gradient(circle at 50% 30%, rgba(139, 92, 246, 0.16), rgba(59, 130, 246, 0.14), rgba(6, 182, 212, 0.06), transparent 60%);
+  filter: blur(85px);
+  z-index: 0;
+  animation: cosmicNebula 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes cosmicNebula {
+  0% {
+    transform: translate(0, 0) scale(1);
+    background: radial-gradient(circle at 45% 25%, rgba(139, 92, 246, 0.20), rgba(59, 130, 246, 0.12), rgba(6, 182, 212, 0.08), transparent 50%);
+  }
+  50% {
+    transform: translate(-2%, 4%) scale(1.04);
+    background: radial-gradient(circle at 55% 35%, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.20), rgba(6, 182, 212, 0.10), transparent 55%);
+  }
+  100% {
+    transform: translate(2%, -4%) scale(0.96);
+    background: radial-gradient(circle at 50% 30%, rgba(139, 92, 246, 0.16), rgba(59, 130, 246, 0.14), rgba(6, 182, 212, 0.06), transparent 60%);
+  }
+}
