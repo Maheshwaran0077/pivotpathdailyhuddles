@@ -178,13 +178,13 @@ const Navbar = () => {
             {/* Admin button (only directly visible if superadmin) */}
             {user.role === 'superadmin' && (
               <Link to="/admin" className={getLinkClass('/admin')}>
-                <LayoutDashboard size={14} /> {t('navbar.admin')}
+                <LayoutDashboard size={14} /> <span className="hidden sm:inline">{t('navbar.admin')}</span>
               </Link>
             )}
 
             {/* Error Forecasting in the main navbar, placed after admin button */}
             <Link to="/forecast" className={getLinkClass('/forecast')}>
-              <Activity size={14} /> {t('navbar.errorForecast')}
+              <Activity size={14} /> <span className="hidden sm:inline">{t('navbar.errorForecast')}</span>
             </Link>
 
             {/* Daily Huddles Tracking External Deploy Link */}
@@ -194,7 +194,7 @@ const Navbar = () => {
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition duration-200 border bg-white text-slate-655 hover:text-slate-900 border-slate-200/60 hover:bg-slate-50 shadow-xs"
             >
-              <Globe size={14} className="text-emerald-650" /> Daily Huddles Tracking
+              <Globe size={14} className="text-emerald-650" /> <span className="hidden sm:inline">Daily Huddles Tracking</span>
             </a>
 
             {/* Menu Dropdown Container */}

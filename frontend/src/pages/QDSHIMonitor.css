@@ -182,3 +182,49 @@
     0% { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
 }
+
+/* Horizontal scroll wrapper for mobile grid viewports */
+.qdshi-grid-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px;
+}
+
+/* Responsive configurations for mobile devices */
+@media (max-width: 767px) {
+    .qdshi-board-container {
+        padding: 8px;
+    }
+
+    .qdshi-board-inner {
+        padding: 15px 10px;
+        border-width: 3px;
+    }
+
+    .board-header-info {
+        font-size: 11px;
+    }
+
+    .board-header-info strong {
+        font-size: 8px;
+        line-height: 1.1;
+    }
+
+    .board-header-info span {
+        font-size: 11px;
+        font-weight: 750;
+    }
+
+    .qdshi-grid {
+        /* Keep grid width large enough to keep tables readable without warping, allowing user to swipe sideways */
+        min-width: 980px;
+        grid-gap: 10px 12px;
+    }
+
+    .row-label {
+        font-size: 12px;
+        padding: 10px 4px;
+        min-width: 80px;
+    }
+}

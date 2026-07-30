@@ -734,199 +734,208 @@ export default function QDSHIMonitor() {
             ref={boardRef} 
             className={`qdshi-board-container relative ${isFullscreen ? 'bg-slate-900 p-6 overflow-y-auto w-full h-full' : ''}`}
         >
-            {/* Shift Indicators */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
-                {['overall', '1', '2', '3'].map(s => (
-                    <div 
-                        key={s} 
-                        onClick={() => setActiveCarouselShift(s)}
-                        className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${activeCarouselShift === s ? 'bg-emerald-600 text-white shadow-lg scale-110' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
-                    >
-                        {s === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: s })}
-                    </div>
-                ))}
-            </div>
+            {/* Header controls bar - relative flex on mobile, absolute on desktop to prevent overlaps */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6 md:mb-12 w-full p-4 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/50 shadow-sm md:bg-transparent md:border-none md:shadow-none md:p-0 md:absolute md:top-4 md:left-0 md:right-0 md:z-10 md:pointer-events-none">
+                {/* Spacing alignment placeholder for desktop */}
+                <div className="hidden md:block w-40"></div>
 
-            {/* Config & Controls */}
-            <div className="absolute top-4 right-4 z-10 flex gap-3 items-center">
-                <input 
-                    type="month" 
-                    value={selectedDateStr}
-                    onChange={(e) => setSelectedDateStr(e.target.value)}
-                    className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
-                />
-                <select 
-                    value={dept} 
-                    onChange={(e) => setDept(e.target.value)}
-                    className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
-                >
-                    {Object.entries(DEPT_MAP).map(([k, v]) => (
-                        <option key={k} value={k}>{t('departments.' + k, v)}</option>
-                     ))}
-                </select>
-                
-                {/* Full Screen Lock/Unlock Toggle Button */}
-                <button
-                    onClick={toggleFullscreen}
-                    className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 p-1.5 rounded-lg shadow-sm outline-none transition-colors flex items-center justify-center"
-                    title={isFullscreen ? t('plantDashboard.exitTitle', 'Unlock Screen Layout') : "Lock Screen to Fullscreen"}
-                >
-                    {isFullscreen ? <Unlock size={16} /> : <Lock size={16} />}
-                </button>
+                {/* Shift Indicators */}
+                <div className="flex gap-2 md:pointer-events-auto">
+                    {['overall', '1', '2', '3'].map(s => (
+                        <div 
+                            key={s} 
+                            onClick={() => setActiveCarouselShift(s)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${activeCarouselShift === s ? 'bg-emerald-600 text-white shadow-lg scale-110' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
+                        >
+                            {s === 'overall' ? t('navbar.overall') : t('navbar.shiftNum', { num: s })}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Config & Controls */}
+                <div className="flex gap-3 items-center md:pointer-events-auto w-full md:w-auto justify-center md:justify-end">
+                    <input 
+                        type="month" 
+                        value={selectedDateStr}
+                        onChange={(e) => setSelectedDateStr(e.target.value)}
+                        className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
+                    />
+                    <select 
+                        value={dept} 
+                        onChange={(e) => setDept(e.target.value)}
+                        className="bg-white border border-slate-300 text-slate-700 text-xs font-bold uppercase rounded-lg px-3 py-1.5 shadow-sm outline-none"
+                    >
+                        {Object.entries(DEPT_MAP).map(([k, v]) => (
+                            <option key={k} value={k}>{t('departments.' + k, v)}</option>
+                         ))}
+                    </select>
+                    
+                    {/* Full Screen Lock/Unlock Toggle Button */}
+                    <button
+                        onClick={toggleFullscreen}
+                        className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 p-1.5 rounded-lg shadow-sm outline-none transition-colors flex items-center justify-center"
+                        title={isFullscreen ? t('plantDashboard.exitTitle', 'Unlock Screen Layout') : "Lock Screen to Fullscreen"}
+                    >
+                        {isFullscreen ? <Unlock size={16} /> : <Lock size={16} />}
+                    </button>
+                </div>
             </div>
 
             {/* Inner Content Layout Container */}
-            <div className="qdshi-board-inner shadow-2xl rounded-xl" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+            <div className="qdshi-board-inner shadow-2xl rounded-xl md:mt-16" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
                 <div className="board-screw-bl"></div>
                 <div className="board-screw-br"></div>
                 
-                {/* Header Information */}
-                <div className="flex flex-wrap board-header-info mb-4 items-center">
-                    <div className="w-full md:w-2/12">
+                {/* Header Information - Refactored to grid for mobile responsiveness */}
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3 board-header-info mb-4 items-center justify-items-center">
+                    <div className="col-span-2 md:col-span-1 flex justify-center">
                         <div className="logo-placeholder">
                             <img src={logo} alt="PivotPath Logo" className="h-10" />
                         </div>
                     </div>
-                    <div className="w-full md:w-2/12 text-center select-none">
+                    <div className="text-center select-none">
                         <strong>{t('dashboard.yearlyPerformance', 'Yearly Performance')}</strong>
                         <span className="text-rose-600 font-black text-sm block mt-0.5">{yearlyPercent}% ({currentYear})</span>
                     </div>
-                    <div className="w-full md:w-2/12 text-center">
+                    <div className="text-center">
                         <strong>{t('dashboard.area', 'Area')}</strong>
                         <span className="text-blue-600">{t('departments.' + dept, DEPT_MAP[dept])}</span>
                     </div>
-                    <div className="w-full md:w-2/12 text-center">
+                    <div className="text-center">
                         <strong>{t('dashboard.monthYear', 'Month / Year')}</strong>
                         <span className="text-emerald-600">{currentMonthLong.substring(0, 3).toUpperCase()} / {currentYear}</span>
                     </div>
-                    <div className="w-full md:w-2/12 text-center">
+                    <div className="text-center">
                         <strong>{t('dashboard.meetingTiming', 'Meeting Timing')}</strong>
                         <span className="text-blue-600">06:00-06:15 | 14:00-14:15</span>
                     </div>
-                    <div className="w-full md:w-2/12 text-center">
+                    <div className="text-center">
                         <strong>Board Owner</strong>
                         <span className="text-emerald-600">Dept. Head</span>
                     </div>
                 </div>
 
-                {/* Grid Layout (4 columns for QDSH) */}
-                <div className="qdshi-grid">
-                    {/* Row 0: Grid Headers (Circles) */}
-                    <div className="grid-cell flex justify-center items-center">
-                        <ConcentricShiftsDonut s1={shift1Stats} s2={shift2Stats} s3={shift3Stats} />
-                    </div>
-                    <div className="grid-cell"><DailyCircle letter="Q" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={qColors} /></div>
-                    <div className="grid-cell"><DailyCircle letter="D" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={dColors} /></div>
-                    <div className="grid-cell"><DailyCircle letter="S" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={sColors} /></div>
-                    <div className="grid-cell"><DailyCircle letter="H" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={hColors} /></div>
-
-                    {/* Row 1: Metrics / KPI */}
-                    <div className="grid-cell row-label">Metrics / KPI</div>
-                    <div className="grid-cell">
-                        <div key={`q-${activeCarouselShift}`} className="carousel-fade h-full w-full">
-                            <DailyTable 
-                                title={`Major Metric: No. of repeat deviation (${shiftDisplayName})`} 
-                                metricHeader="Human error related deviations"
-                                subheaders={['Status']}
-                                colorClass="th-q-bg"
-                                rowsData={qRows}
-                                formatCell={(row, idx) => row[idx]}
-                                getCellClass={(row, idx) => {
-                                    const val = row[idx];
-                                    if (val === '✅') return 'bg-emerald-100 text-emerald-800';
-                                    if (val === 'HE' || val === 'PE' || val === '⚠️') return 'bg-red-100 text-red-800';
-                                    return '';
-                                }}
-                            />
+                {/* Horizontal scroll wrapper for mobile grid viewports */}
+                <div className="qdshi-grid-wrapper">
+                    {/* Grid Layout (4 columns for QDSH) */}
+                    <div className="qdshi-grid">
+                        {/* Row 0: Grid Headers (Circles) */}
+                        <div className="grid-cell flex justify-center items-center">
+                            <ConcentricShiftsDonut s1={shift1Stats} s2={shift2Stats} s3={shift3Stats} />
                         </div>
-                    </div>
-                    <div className="grid-cell">
-                        <div key={`d-${activeCarouselShift}`} className="carousel-fade h-full w-full">
-                            <DailyTable 
-                                title={`Major Metric: Plan Vs Actual (${shiftDisplayName})`} 
-                                metricHeader="Delivery Plan Vs Actual"
-                                subheaders={['Plan', 'Actual', 'Var']}
-                                colorClass="th-d-bg"
-                                rowsData={dRows}
-                                formatCell={(row, idx) => {
-                                    if (row.plan === 0 && row.actual === 0) return '';
-                                    if (idx === 0) return row.plan;
-                                    if (idx === 1) return row.actual;
-                                    const diff = row.actual - row.plan;
-                                    return <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-500'}>{diff > 0 ? `+${diff}` : diff}</span>;
-                                }}
-                                getCellClass={(row, idx) => {
-                                    if (row.plan === 0 && row.actual === 0) return '';
-                                    if (idx === 2) {
+                        <div className="grid-cell"><DailyCircle letter="Q" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={qColors} /></div>
+                        <div className="grid-cell"><DailyCircle letter="D" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={dColors} /></div>
+                        <div className="grid-cell"><DailyCircle letter="S" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={sColors} /></div>
+                        <div className="grid-cell"><DailyCircle letter="H" selectedMonthIdx={currentMonthIdx} selectedYear={currentYear} colors={hColors} /></div>
+
+                        {/* Row 1: Metrics / KPI */}
+                        <div className="grid-cell row-label">Metrics / KPI</div>
+                        <div className="grid-cell">
+                            <div key={`q-${activeCarouselShift}`} className="carousel-fade h-full w-full">
+                                <DailyTable 
+                                    title={`Major Metric: No. of repeat deviation (${shiftDisplayName})`} 
+                                    metricHeader="Human error related deviations"
+                                    subheaders={['Status']}
+                                    colorClass="th-q-bg"
+                                    rowsData={qRows}
+                                    formatCell={(row, idx) => row[idx]}
+                                    getCellClass={(row, idx) => {
+                                        const val = row[idx];
+                                        if (val === '✅') return 'bg-emerald-100 text-emerald-800';
+                                        if (val === 'HE' || val === 'PE' || val === '⚠️') return 'bg-red-100 text-red-800';
+                                        return '';
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid-cell">
+                            <div key={`d-${activeCarouselShift}`} className="carousel-fade h-full w-full">
+                                <DailyTable 
+                                    title={`Major Metric: Plan Vs Actual (${shiftDisplayName})`} 
+                                    metricHeader="Delivery Plan Vs Actual"
+                                    subheaders={['Plan', 'Actual', 'Var']}
+                                    colorClass="th-d-bg"
+                                    rowsData={dRows}
+                                    formatCell={(row, idx) => {
+                                        if (row.plan === 0 && row.actual === 0) return '';
+                                        if (idx === 0) return row.plan;
+                                        if (idx === 1) return row.actual;
                                         const diff = row.actual - row.plan;
-                                        return diff >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
-                                    }
-                                    return '';
-                                }}
-                            />
+                                        return <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-500'}>{diff > 0 ? `+${diff}` : diff}</span>;
+                                    }}
+                                    getCellClass={(row, idx) => {
+                                        if (row.plan === 0 && row.actual === 0) return '';
+                                        if (idx === 2) {
+                                            const diff = row.actual - row.plan;
+                                            return diff >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
+                                        }
+                                        return '';
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="grid-cell">
-                        <div key={`s-${activeCarouselShift}`} className="carousel-fade h-full w-full">
-                            <DailyTable 
-                                title={`Major Metric: No. of Safety Incidents (${shiftDisplayName})`} 
-                                metricHeader="Near Miss / Unsafe Acts / LTI"
-                                subheaders={['NM', 'UA', 'LTI']}
-                                colorClass="th-s-bg"
-                                rowsData={sRows}
-                                formatCell={(row, idx) => {
-                                    if (!row) return '';
-                                    return idx === 0 ? row.nm : idx === 1 ? row.ua : <span className={row.lti > 0 ? 'text-red-500' : ''}>{row.lti}</span>;
-                                }}
-                                getCellClass={(row, idx) => {
-                                    if (!row) return '';
-                                    if (idx === 0 && row.nm > 0) return 'bg-amber-100 text-amber-800';
-                                    if (idx === 1 && row.ua > 0) return 'bg-orange-100 text-orange-800';
-                                    if (idx === 2 && row.lti > 0) return 'bg-red-100 text-red-800';
-                                    if (idx === 2 && row.lti === 0) return 'bg-emerald-100 text-emerald-800';
-                                    return '';
-                                }}
-                            />
+                        <div className="grid-cell">
+                            <div key={`s-${activeCarouselShift}`} className="carousel-fade h-full w-full">
+                                <DailyTable 
+                                    title={`Major Metric: No. of Safety Incidents (${shiftDisplayName})`} 
+                                    metricHeader="Near Miss / Unsafe Acts / LTI"
+                                    subheaders={['NM', 'UA', 'LTI']}
+                                    colorClass="th-s-bg"
+                                    rowsData={sRows}
+                                    formatCell={(row, idx) => {
+                                        if (!row) return '';
+                                        return idx === 0 ? row.nm : idx === 1 ? row.ua : <span className={row.lti > 0 ? 'text-red-500' : ''}>{row.lti}</span>;
+                                    }}
+                                    getCellClass={(row, idx) => {
+                                        if (!row) return '';
+                                        if (idx === 0 && row.nm > 0) return 'bg-amber-100 text-amber-800';
+                                        if (idx === 1 && row.ua > 0) return 'bg-orange-100 text-orange-800';
+                                        if (idx === 2 && row.lti > 0) return 'bg-red-100 text-red-800';
+                                        if (idx === 2 && row.lti === 0) return 'bg-emerald-100 text-emerald-800';
+                                        return '';
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="grid-cell">
-                        <div key={`h-${activeCarouselShift}`} className="carousel-fade h-full w-full">
-                            <DailyTable 
-                                title={`Major Metric: Absenteeism (${shiftDisplayName})`} 
-                                metricHeader="Health / Absenteeism Rate"
-                                subheaders={['Staff', 'Abs', '%']}
-                                colorClass="th-h-bg"
-                                rowsData={hRows}
-                                formatCell={(row, idx) => {
-                                    if (row.total === 0) return '';
-                                    if (idx === 0) return row.total;
-                                    if (idx === 1) return row.absent;
-                                    return ((row.absent / row.total) * 100).toFixed(1) + '%';
-                                }}
-                                getCellClass={(row, idx) => {
-                                    if (row.total === 0) return '';
-                                    if (idx === 1 || idx === 2) {
-                                        return row.absent > 0 ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800';
-                                    }
-                                    return '';
-                                }}
-                            />
+                        <div className="grid-cell">
+                            <div key={`h-${activeCarouselShift}`} className="carousel-fade h-full w-full">
+                                <DailyTable 
+                                    title={`Major Metric: Absenteeism (${shiftDisplayName})`} 
+                                    metricHeader="Health / Absenteeism Rate"
+                                    subheaders={['Staff', 'Abs', '%']}
+                                    colorClass="th-h-bg"
+                                    rowsData={hRows}
+                                    formatCell={(row, idx) => {
+                                        if (row.total === 0) return '';
+                                        if (idx === 0) return row.total;
+                                        if (idx === 1) return row.absent;
+                                        return ((row.absent / row.total) * 100).toFixed(1) + '%';
+                                    }}
+                                    getCellClass={(row, idx) => {
+                                        if (row.total === 0) return '';
+                                        if (idx === 1 || idx === 2) {
+                                            return row.absent > 0 ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800';
+                                        }
+                                        return '';
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Row 2: Issues / Challenges */}
-                    <div className="grid-cell row-label">Issues /<br/>Challenges</div>
-                    <div className="grid-cell"><IssuesTable issues={qIssues} /></div>
-                    <div className="grid-cell"><IssuesTable issues={dIssues} /></div>
-                    <div className="grid-cell"><IssuesTable issues={sIssues} /></div>
-                    <div className="grid-cell"><IssuesTable issues={hIssues} /></div>
+                        {/* Row 2: Issues / Challenges */}
+                        <div className="grid-cell row-label">Issues /<br/>Challenges</div>
+                        <div className="grid-cell"><IssuesTable issues={qIssues} /></div>
+                        <div className="grid-cell"><IssuesTable issues={dIssues} /></div>
+                        <div className="grid-cell"><IssuesTable issues={sIssues} /></div>
+                        <div className="grid-cell"><IssuesTable issues={hIssues} /></div>
 
-                    {/* Row 3: Action Tracker */}
-                    <div className="grid-cell row-label">Action Tracker</div>
-                    <div className="grid-cell"><ActionTable actions={qActions} /></div>
-                    <div className="grid-cell"><ActionTable actions={dActions} /></div>
-                    <div className="grid-cell"><ActionTable actions={sActions} /></div>
-                    <div className="grid-cell"><ActionTable actions={hActions} /></div>
+                        {/* Row 3: Action Tracker */}
+                        <div className="grid-cell row-label">Action Tracker</div>
+                        <div className="grid-cell"><ActionTable actions={qActions} /></div>
+                        <div className="grid-cell"><ActionTable actions={dActions} /></div>
+                        <div className="grid-cell"><ActionTable actions={sActions} /></div>
+                        <div className="grid-cell"><ActionTable actions={hActions} /></div>
+                    </div>
                 </div>
             </div>
         </div>

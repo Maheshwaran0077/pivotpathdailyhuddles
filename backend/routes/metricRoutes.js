@@ -181,8 +181,11 @@ router.get('/global-pillars', async (req, res) => {
       if (month) {
         const [yStr, mStr] = month.split('-');
         const yearNum = Number(yStr);
-        const dateObj = new Date(yearNum, Number(mStr) - 1, 1);
-        const monthLong = dateObj.toLocaleString('default', { month: 'long' });
+        const MONTH_NAMES = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthLong = MONTH_NAMES[Number(mStr) - 1];
         
         query.year = yearNum;
         query.month = monthLong;
