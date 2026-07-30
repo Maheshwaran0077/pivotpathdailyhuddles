@@ -42,88 +42,121 @@ const CosmicHeaderBackground = () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
-    // Create random stars
-    const stars = [];
-    const numStars = 60;
-    for (let i = 0; i < numStars; i++) {
-      stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        size: Math.random() * 1.5 + 0.5,
-        alpha: Math.random(),
-        speed: Math.random() * 0.015 + 0.005
-      });
-    }
+    // Create random 3D spiral galaxy particles
+    const particles = [];
+    const numParticles = 140;
     
-    // Create cosmic dust particles
-    const dust = [];
-    const numDust = 25;
-    for (let i = 0; i < numDust; i++) {
-      // Dust clouds with color hue (violet, pink, red, green)
-      const colors = ['rgba(139, 92, 246, 0.45)', 'rgba(236, 72, 153, 0.45)', 'rgba(239, 68, 68, 0.45)', 'rgba(34, 197, 94, 0.45)'];
-      dust.push({
-        x: Math.random(),
-        y: Math.random(),
-        radius: Math.random() * 40 + 20,
+    // Vibrant neon colors: violet, pink, red, green
+    const colors = [
+      'rgba(139, 92, 246, ',  // Violet
+      'rgba(236, 72, 153, ',  // Pink
+      'rgba(239, 68, 68, ',   // Red
+      'rgba(34, 197, 94, '    // Green
+    ];
+    
+    for (let i = 0; i < numParticles; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      // 2 spiral arms
+      const arm = Math.floor(Math.random() * 2) * Math.PI;
+      const distance = Math.pow(Math.random(), 1.6); // concentrate towards core
+      
+      const armAngle = angle + arm + distance * 3.5;
+      
+      particles.push({
+        r: distance,
+        angle: armAngle,
+        speed: Math.random() * 0.003 + 0.0015,
+        size: Math.random() * 2.2 + 0.8,
         color: colors[Math.floor(Math.random() * colors.length)],
-        vx: (Math.random() - 0.5) * 0.0004,
-        vy: (Math.random() - 0.5) * 0.0004
+        zOffset: (Math.random() - 0.5) * 0.12, // 3D disk thickness
+        type: Math.random() > 0.45 ? 'dust' : 'star'
       });
     }
     
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // 1. Draw Nebular Background Gradient
+      // 1. Draw base nebular space radial gradient
       const baseGrad = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 3, 5,
-        canvas.width / 2, canvas.height / 3, canvas.width / 1.5
+        canvas.width / 2, canvas.height * 0.38, 5,
+        canvas.width / 2, canvas.height * 0.38, canvas.width / 1.3
       );
-      baseGrad.addColorStop(0, '#0a051d');
-      baseGrad.addColorStop(0.3, '#140c30');
-      baseGrad.addColorStop(0.7, '#07040f');
+      baseGrad.addColorStop(0, '#0a0620');
+      baseGrad.addColorStop(0.35, '#120b2e');
+      baseGrad.addColorStop(0.75, '#06040d');
       baseGrad.addColorStop(1, '#ffffff');
       ctx.fillStyle = baseGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // 2. Draw moving cosmic dust (nebular color clouds)
-      dust.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > 1) p.vx *= -1;
-        if (p.y < 0 || p.y > 1) p.vy *= -1;
+      const cx = canvas.width / 2;
+      const cy = canvas.height * 0.38;
+      const maxRadius = Math.min(canvas.width, canvas.height) * 0.85;
+      
+      // 2. Draw moving 3D galaxy particles (tilted disc projection)
+      particles.forEach(p => {
+        p.angle += p.speed;
         
-        const dustGrad = ctx.createRadialGradient(
-          p.x * canvas.width, p.y * canvas.height, 0,
-          p.x * canvas.width, p.y * canvas.height, p.radius
-        );
-        dustGrad.addColorStop(0, p.color);
-        dustGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = dustGrad;
-        ctx.beginPath();
-        ctx.arc(p.x * canvas.width, p.y * canvas.height, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      
-      // 3. Draw breathing starlight
-      stars.forEach(s => {
-        s.alpha += s.speed;
-        if (s.alpha > 1 || s.alpha < 0) {
-          s.speed *= -1;
+        // Calculate coords of the tilted galaxy plane
+        const diskX = Math.cos(p.angle) * p.r * maxRadius;
+        const diskY = Math.sin(p.angle) * p.r * maxRadius * 0.32; // 0.32 tilt factor
+        
+        const px = cx + diskX;
+        const py = cy + diskY + p.zOffset * maxRadius;
+        
+        // Vertical ratio of Y position inside the 50vh canvas
+        const screenYNorm = py / canvas.height;
+        
+        // Density/opacity drop-off calculation:
+        // Starts at 30% of viewport (which is screenYNorm = 0.6)
+        // and drops linearly to zero at 50% of viewport (screenYNorm = 1.0)
+        let fadeFactor = 1.0;
+        if (screenYNorm > 0.6) {
+          fadeFactor = Math.max(0, 1.0 - (screenYNorm - 0.6) / 0.4);
         }
-        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, s.alpha)})`;
-        ctx.beginPath();
-        ctx.arc(s.x * canvas.width, s.y * canvas.height, s.size, 0, Math.PI * 2);
-        ctx.fill();
+        
+        // If it fades completely, we don't draw it (simulates density decrease)
+        if (fadeFactor > 0) {
+          if (p.type === 'dust') {
+            // Draw nebulous colored dust particle glow
+            const radius = p.size * 9 * (1 + Math.sin(p.angle) * 0.15);
+            const dustGrad = ctx.createRadialGradient(px, py, 0, px, py, radius);
+            dustGrad.addColorStop(0, p.color + (0.35 * fadeFactor) + ')');
+            dustGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            ctx.fillStyle = dustGrad;
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            // Draw starlight particle (star core + halo)
+            const radius = p.size * 2 * (1 + Math.sin(p.angle * 3) * 0.25);
+            
+            const starGrad = ctx.createRadialGradient(px, py, 0, px, py, radius * 2.5);
+            starGrad.addColorStop(0, p.color + (0.75 * fadeFactor) + ')');
+            starGrad.addColorStop(0.5, p.color + (0.2 * fadeFactor) + ')');
+            starGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            ctx.fillStyle = starGrad;
+            ctx.beginPath();
+            ctx.arc(px, py, radius * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Bright white star center
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * fadeFactor})`;
+            ctx.beginPath();
+            ctx.arc(px, py, radius * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       });
       
-      // 4. Smooth white fade mask at the bottom (transition into clean white page)
-      const fadeGrad = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height);
+      // 3. Smooth white fade mask at the bottom (transition into clean white page)
+      const fadeGrad = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
       fadeGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      fadeGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.95)');
+      fadeGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.96)');
       fadeGrad.addColorStop(1, '#ffffff');
       ctx.fillStyle = fadeGrad;
-      ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.5);
+      ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
       
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -136,7 +169,7 @@ const CosmicHeaderBackground = () => {
   }, []);
   
   return (
-    <div className="absolute top-0 left-0 w-full h-[32vh] overflow-hidden pointer-events-none select-none z-0 border-b border-slate-100">
+    <div className="absolute top-0 left-0 w-full h-[50vh] overflow-hidden pointer-events-none select-none z-0 border-b border-slate-100/60">
       <canvas id="cosmic-canvas" className="w-full h-full block" />
     </div>
   );
@@ -511,7 +544,7 @@ export default function PredictiveDashboard() {
         </div>
       ) : (
         <>
-          <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
             
             {/* LEFT/CENTER COLUMN: Forecasting Chart & Model Info */}
             <div className="lg:col-span-2 flex flex-col gap-8">
@@ -772,7 +805,7 @@ export default function PredictiveDashboard() {
           </div>
 
           {/* DEPARTMENTAL ANALYTICAL BREAKDOWN SECTION */}
-          <div className="max-w-7xl mx-auto px-6 mt-12 pb-16">
+          <div className="max-w-7xl mx-auto px-6 mt-12 pb-16 relative z-10">
             <div className="border-t border-slate-200/80 pt-8">
               <div className="mb-8">
                 <h2 className="text-lg font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
