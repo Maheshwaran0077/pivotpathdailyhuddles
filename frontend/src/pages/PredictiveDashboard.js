@@ -515,35 +515,35 @@ export default function PredictiveDashboard() {
             <div className="lg:col-span-2 flex flex-col gap-8">
               
               {/* Model Summary Cards (Simplified Percentages & Counts Engine) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">d:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {/* Historical Summary Card */}
-                <div className="bg-slate-900/40 backdrop-blur-md border border-indigo-500/20 rounded-3xl p-5 shadow-lg transition duration-300">
-                  <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest block mb-1">Historical defects (60 Days)</span>
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
+                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Historical defects (60 Days)</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-white">{totalHistoricalErrors}</span>
+                    <span className="text-2xl font-black text-slate-800">{totalHistoricalErrors}</span>
                     <span className="text-[10px] font-bold text-slate-400">Total Errors</span>
                   </div>
-                  <p className="text-[9px] text-slate-300 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-800/60">
+                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
                     Last 60 Days: {totalHistoricalErrors} Total Errors | {concentrationPercentage}% Concentration in {maxDeptName}
                   </p>
                 </div>
 
                 {/* Future Projections Card */}
-                <div className="bg-slate-900/40 backdrop-blur-md border border-purple-500/20 rounded-3xl p-5 shadow-lg transition duration-300">
-                  <span className="text-[10px] font-black text-purple-300 uppercase tracking-widest block mb-1">Projected Defects (40 Days)</span>
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
+                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Projected Defects (40 Days)</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-white">{totalProjectedErrors}</span>
+                    <span className="text-2xl font-black text-slate-800">{totalProjectedErrors}</span>
                     <span className="text-[10px] font-bold text-slate-400">Projected Errors</span>
                   </div>
-                  <div className="mt-2.5 border-t pt-2 border-slate-800/60 flex items-center justify-between">
-                    <span className="text-[9px] text-slate-400 font-bold">Status:</span>
+                  <div className="mt-2.5 border-t pt-2 border-slate-100 flex items-center justify-between">
+                    <span className="text-[9px] text-slate-450 font-bold">Status:</span>
                     {totalProjectedErrors > (totalHistoricalErrors * 0.5) || totalProjectedErrors > 25 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-600 border border-rose-100">
                         🔴 Alert / High Risk
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
                         🟢 Stable / Safe
                       </span>
                     )}
@@ -551,15 +551,15 @@ export default function PredictiveDashboard() {
                 </div>
 
                 {/* ML Engine Status */}
-                <div className="bg-slate-900/40 backdrop-blur-md border border-cyan-500/20 rounded-3xl p-5 shadow-lg transition duration-300">
-                  <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest block mb-1">Forecasting Engine</span>
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
+                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Forecasting Engine</span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={`w-2.5 h-2.5 rounded-full ${mlServiceStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                    <span className="text-xs font-black uppercase tracking-tight text-white">
+                    <span className="text-xs font-black uppercase tracking-tight text-slate-700">
                       {mlServiceStatus === 'online' ? 'AI Prophet Active' : 'Statistical Fallback'}
                     </span>
                   </div>
-                  <p className="text-[9px] text-slate-300 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-800/60">
+                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
                     {mlServiceStatus === 'online' 
                       ? "Using advanced Prophet Time-Series AI model to forecast future data points." 
                       : "Operating on local fallback mathematical model using current trend velocities."}
@@ -569,32 +569,32 @@ export default function PredictiveDashboard() {
               </div>
 
               {/* Dedicated Smart Recommendation Card (Rule 2) */}
-              <div className="bg-slate-900/50 backdrop-blur-md border border-amber-500/15 rounded-3xl p-6 shadow-xl flex flex-col gap-4 animate-in fade-in duration-500">
+              <div className="bg-white/85 backdrop-blur-md border border-amber-200/70 rounded-3xl p-6 shadow-xs flex flex-col gap-4 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center">
+                  <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center">
                     <AlertTriangle size={18} />
                   </div>
-                  <h4 className="text-xs font-black uppercase text-amber-200 tracking-wider">Smart Recommendation</h4>
+                  <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Smart Recommendation</h4>
                 </div>
-                <div className="border-t border-slate-800/60 pt-3">
-                  <p className="text-[11px] text-slate-300 font-bold leading-relaxed">
+                <div className="border-t border-slate-150 pt-3">
+                  <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
                     {rec.causeEffect}
                   </p>
-                  <div className="mt-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5">
-                    <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider shrink-0">Action Plan:</span>
-                    <span className="text-[10px] text-amber-800 font-black">{rec.recommendation}</span>
+                  <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-xl px-4 py-2.5">
+                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider shrink-0">Action Plan:</span>
+                    <span className="text-[10px] text-amber-700 font-black">{rec.recommendation}</span>
                   </div>
                 </div>
               </div>
 
               {/* Chart Panel */}
-              <div className="bg-slate-900/40 backdrop-blur-md border border-indigo-500/20 rounded-[2.5rem] p-6 shadow-sm">
+              <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs">
                 <div className="mb-6 flex justify-between items-start">
                   <div>
-                    <h2 className="text-sm font-black uppercase text-white tracking-wider">Historical vs Forecast Defect Timeline</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">60 days observed actuals + 40 days machine learning projections</p>
+                    <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider">Historical vs Forecast Defect Timeline</h2>
+                    <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">60 days observed actuals + 40 days machine learning projections</p>
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400">
+                  <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500">
                     <div className="flex items-center gap-1.5">
                       <span className="w-3 h-0.5 bg-emerald-500 inline-block" /> Actual Defects
                     </div>
@@ -602,7 +602,7 @@ export default function PredictiveDashboard() {
                       <span className="w-3 h-0.5 bg-purple-500 border-t border-dashed border-purple-500 inline-block" /> Projected Forecast
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 bg-purple-900/30 border border-purple-800/40 rounded inline-block" /> 95% Confidence Bounds
+                      <span className="w-3 h-3 bg-purple-100 border border-purple-200 rounded inline-block" /> 95% Confidence Bounds
                     </div>
                   </div>
                 </div>
@@ -683,31 +683,31 @@ export default function PredictiveDashboard() {
             <div className="flex flex-col gap-6">
               
               {/* Info explanatory element */}
-              <div className="bg-slate-900/40 backdrop-blur-md border border-indigo-500/20 rounded-[2rem] p-5 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center gap-1 text-[10px] font-black text-indigo-300 uppercase tracking-widest">
-                  <Gauge size={14} className="text-indigo-400" /> Model Reliability Index
+              <div className="bg-white/85 backdrop-blur-md border border-slate-200/60 rounded-[2rem] p-5 shadow-xs flex flex-col gap-3">
+                <div className="flex items-center gap-1 text-[10px] font-black text-slate-450 uppercase tracking-widest">
+                  <Gauge size={14} className="text-slate-500" /> Model Reliability Index
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
-                  <span className="text-xs font-bold text-slate-400">Sample Count (Days)</span>
-                  <span className="font-black text-white text-xs">91 Days actual</span>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="text-xs font-bold text-slate-550">Sample Count (Days)</span>
+                  <span className="font-black text-slate-800 text-xs">91 Days actual</span>
                 </div>
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
-                  <span className="text-xs font-bold text-slate-400">Prediction Scope</span>
-                  <span className="font-black text-emerald-455 text-xs">10 Days projected</span>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="text-xs font-bold text-slate-550">Prediction Scope</span>
+                  <span className="font-black text-emerald-600 text-xs">10 Days projected</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">Reliability Grade</span>
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 font-extrabold text-[9px] rounded-lg border border-emerald-500/20 uppercase">
+                  <span className="text-xs font-bold text-slate-550">Reliability Grade</span>
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold text-[9px] rounded-lg border border-emerald-200/40 uppercase">
                     95% Confidence
                   </span>
                 </div>
               </div>
 
               {/* Risk Warnings Board */}
-              <div className="bg-slate-900/40 backdrop-blur-md border border-purple-500/20 rounded-[2.5rem] p-6 shadow-sm flex flex-col gap-4 flex-1">
+              <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4 flex-1">
                 <div>
-                  <h2 className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-                    <ShieldAlert className="text-rose-505" size={17} /> 
+                  <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+                    <ShieldAlert className="text-rose-600" size={17} /> 
                     Stations Risk Matrix
                   </h2>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Defect density rank & mitigation recommendations</p>
@@ -722,7 +722,7 @@ export default function PredictiveDashboard() {
                       <div 
                         key={item.stationId} 
                         onClick={() => setSelectedStation(item)}
-                        className="p-3.5 bg-slate-855/30 border border-slate-800/60 rounded-2xl flex flex-col gap-2 relative hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-300 cursor-pointer shadow-xs active:scale-98"
+                        className="p-3.5 bg-white/70 border border-slate-150/80 rounded-2xl flex flex-col gap-2 relative hover:border-emerald-250 hover:bg-emerald-50/20 transition-all duration-300 cursor-pointer shadow-xs active:scale-98"
                         title={
                           item.riskLevel === 'Critical' 
                             ? "Critical rating is triggered because high frequency of critical/high-severity defects logged on this line."
@@ -733,25 +733,25 @@ export default function PredictiveDashboard() {
                       >
                         {/* Station Name + Severity Badge with Native Tooltip */}
                         <div className="flex justify-between items-center">
-                          <span className="font-black text-xs text-white uppercase">{item.stationId}</span>
+                          <span className="font-black text-slate-800 uppercase">{item.stationId}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border cursor-help ${
-                            item.riskLevel === 'Critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                            item.riskLevel === 'High' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                            'bg-slate-800 text-slate-400 border-slate-700'
+                            item.riskLevel === 'Critical' ? 'bg-rose-50 text-rose-600 border-rose-150' :
+                            item.riskLevel === 'High' ? 'bg-amber-50 text-amber-600 border-amber-150' :
+                            'bg-slate-50 text-slate-550 border-slate-200'
                           }`}>
                             {item.riskLevel}
                           </span>
                         </div>
 
                         {/* Defect count details */}
-                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 font-bold">
-                          <div>Total Defects: <span className="text-white font-black">{item.totalDefects}</span></div>
-                          <div className="text-right">Primary: <span className="text-emerald-400 font-black truncate max-w-[80px] inline-block align-bottom">{item.primaryErrorType}</span></div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-bold">
+                          <div>Total Defects: <span className="text-slate-800 font-black">{item.totalDefects}</span></div>
+                          <div className="text-right">Primary: <span className="text-emerald-600 font-black truncate max-w-[80px] inline-block align-bottom">{item.primaryErrorType}</span></div>
                         </div>
 
                         {/* Mitigation recommendation text */}
-                        <div className="hidden group-hover:block text-[9px] text-slate-300 bg-slate-900 border border-emerald-500/20 p-2 rounded-xl mt-1.5 leading-normal animate-scale-up font-medium">
-                          <span className="font-extrabold text-[8px] uppercase tracking-widest text-emerald-400 block mb-0.5">Recommended Action:</span>
+                        <div className="hidden group-hover:block text-[9px] text-slate-600 bg-white border border-emerald-100/50 p-2 rounded-xl mt-1.5 leading-normal animate-scale-up font-medium">
+                          <span className="font-extrabold text-[8px] uppercase tracking-widest text-emerald-655 block mb-0.5">Recommended Action:</span>
                           {item.riskLevel === 'Critical' ? (
                             "⚠️ CRITICAL ACTION: Schedule mandatory machine calibration within the next 24 hours. Hold secondary audits."
                           ) : item.riskLevel === 'High' ? (
@@ -771,10 +771,10 @@ export default function PredictiveDashboard() {
 
           {/* DEPARTMENTAL ANALYTICAL BREAKDOWN SECTION */}
           <div className="max-w-7xl mx-auto px-6 mt-12 pb-16 relative z-10">
-            <div className="border-t border-slate-800/80 pt-8">
+            <div className="border-t border-slate-200/80 pt-8">
               <div className="mb-8">
-                <h2 className="text-lg font-black text-white uppercase tracking-wide flex items-center gap-2">
-                  <BarChart3 className="text-emerald-400" size={20} />
+                <h2 className="text-lg font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                  <BarChart3 className="text-emerald-600" size={20} />
                   Departmental Analytical Breakdown
                 </h2>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
@@ -793,22 +793,22 @@ export default function PredictiveDashboard() {
                   return (
                     <div 
                       key={deptName} 
-                      className="bg-slate-900/40 backdrop-blur-md border border-emerald-500/20 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between gap-4 hover:border-emerald-500/40 transition duration-300"
+                      className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between gap-4 hover:border-emerald-300/80 transition duration-300"
                       title={`Double-click card to view specific logs for ${deptName}`}
                     >
                       <div className="flex flex-col gap-3">
-                        <div className="flex justify-between items-start border-b border-slate-800/60 pb-3">
+                        <div className="flex justify-between items-start border-b border-slate-150 pb-3">
                           <div className="flex items-center gap-2">
-                            <div className="p-2 bg-emerald-955/40 text-emerald-400 rounded-xl">
+                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
                               {getDeptIcon(deptName)}
                             </div>
                             <div>
-                              <h3 className="font-black text-white text-xs uppercase tracking-tight leading-tight max-w-[150px]">{deptName}</h3>
+                              <h3 className="font-black text-slate-850 text-xs uppercase tracking-tight leading-tight max-w-[150px]">{deptName}</h3>
                             </div>
                           </div>
                           
                           <span className={`px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-widest border ${
-                            isHighRisk ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            isHighRisk ? 'bg-rose-50 text-rose-600 border-rose-200/60' : 'bg-emerald-55 text-emerald-605 border-emerald-200/60'
                           }`}
                           title={isHighRisk 
                             ? "Action Alert: High frequency of critical/high-severity defects logged on this line."
@@ -819,29 +819,29 @@ export default function PredictiveDashboard() {
                         </div>
 
                         {/* Defect Counter Grid */}
-                        <div className="grid grid-cols-3 gap-1 bg-slate-850/50 p-2 rounded-xl text-[9px] text-slate-400 font-bold border border-slate-800/60">
-                          <div>Total: <span className="text-white font-black block">{stats.totalDefects}</span></div>
-                          <div>High: <span className="text-rose-400 font-black block">{stats.highSeverityCount}</span></div>
-                          <div className="truncate">Primary: <span className="text-emerald-400 font-black block truncate">{stats.primaryErrorType}</span></div>
+                        <div className="grid grid-cols-3 gap-1 bg-slate-50 p-2 rounded-xl text-[9px] text-slate-505 font-bold border border-slate-100">
+                          <div>Total: <span className="text-slate-855 font-black block">{stats.totalDefects}</span></div>
+                          <div>High: <span className="text-rose-600 font-black block">{stats.highSeverityCount}</span></div>
+                          <div className="truncate">Primary: <span className="text-emerald-600 font-black block truncate">{stats.primaryErrorType}</span></div>
                         </div>
 
                         {/* Descriptions (fully visible, no clipping) */}
-                        <div className="flex flex-col gap-3 text-[11px] text-slate-350 leading-relaxed font-medium">
+                        <div className="flex flex-col gap-3 text-[11px] text-slate-655 leading-relaxed font-medium">
                           <div>
-                            <span className="font-black text-slate-400 uppercase tracking-wider text-[8px] block mb-0.5">Historical Observations:</span>
-                            <p className="text-slate-400">{details.causes}</p>
+                            <span className="font-black text-slate-855 uppercase tracking-wider text-[8px] block mb-0.5">Historical Observations:</span>
+                            <p className="text-slate-500">{details.causes}</p>
                           </div>
                           <div>
-                            <span className="font-black text-slate-400 uppercase tracking-wider text-[8px] block mb-0.5">Pillar Metric Rule:</span>
-                            <p className="text-emerald-400 font-semibold">{details.rules}</p>
+                            <span className="font-black text-slate-855 uppercase tracking-wider text-[8px] block mb-0.5">Pillar Metric Rule:</span>
+                            <p className="text-emerald-655 font-semibold">{details.rules}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Engineering Recommendations in full */}
-                      <div className="bg-emerald-955/20 p-3 rounded-xl border border-emerald-900/30 text-[11px] mt-2">
-                        <span className="font-black text-emerald-400 uppercase tracking-wider text-[8px] block mb-0.5">Proactive Engineering Action:</span>
-                        <p className="text-slate-250 font-bold leading-normal">{details.recommendations}</p>
+                      <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/50 text-[11px] mt-2">
+                        <span className="font-black text-emerald-800 uppercase tracking-wider text-[8px] block mb-0.5">Proactive Engineering Action:</span>
+                        <p className="text-slate-700 font-bold leading-normal">{details.recommendations}</p>
                       </div>
 
                     </div>
@@ -854,8 +854,8 @@ export default function PredictiveDashboard() {
 
           {/* Station Detail Modal Popup */}
           {selectedStation && (
-            <div className="fixed inset-0 bg-slate-955/80 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-              <div className="bg-slate-900/90 border border-slate-800/80 backdrop-blur-lg rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                 <button 
                   onClick={() => setSelectedStation(null)} 
                   className="absolute top-6 right-6 text-slate-400 hover:text-rose-500 transition-colors outline-none"
@@ -864,9 +864,9 @@ export default function PredictiveDashboard() {
                 </button>
                 
                 <div className="flex items-center gap-2 mb-4">
-                  <ShieldAlert className="text-emerald-400" size={24} />
+                  <ShieldAlert className="text-emerald-655" size={24} />
                   <div>
-                    <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
                       Station Risk Details: {selectedStation.stationId}
                     </h3>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
@@ -875,27 +875,27 @@ export default function PredictiveDashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-4 border-t border-slate-800 pt-4">
+                <div className="space-y-4 border-t border-slate-100 pt-4">
                   {/* Department */}
-                  <div className="bg-slate-850/40 border border-slate-800/60 rounded-2xl p-4">
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Operational Department</span>
-                    <span className="text-sm font-black text-white uppercase tracking-tight block">
+                    <span className="text-sm font-black text-slate-855 uppercase tracking-tight block">
                       {selectedStation.department}
                     </span>
                   </div>
 
                   {/* Error Metrics */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-850/40 border border-slate-800/60 rounded-2xl p-4">
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Defects Count</span>
-                      <span className="text-2xl font-black text-white">{selectedStation.totalDefects}</span>
+                      <span className="text-2xl font-black text-slate-855">{selectedStation.totalDefects}</span>
                     </div>
-                    <div className="bg-slate-850/40 border border-slate-800/60 rounded-2xl p-4">
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Severity Status</span>
                       <span className={`px-2.5 py-0.5 mt-1 rounded-full text-[9px] font-black uppercase tracking-widest border inline-block ${
-                        selectedStation.riskLevel === 'Critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                        selectedStation.riskLevel === 'High' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        selectedStation.riskLevel === 'Critical' ? 'bg-rose-55 text-rose-600 border-rose-200/60' :
+                        selectedStation.riskLevel === 'High' ? 'bg-amber-55 text-amber-600 border-amber-200/60' :
+                        'bg-emerald-50 border-emerald-200 text-emerald-600'
                       }`}>
                         {selectedStation.riskLevel}
                       </span>
@@ -903,36 +903,36 @@ export default function PredictiveDashboard() {
                   </div>
 
                   {/* Severity Breakdown */}
-                  <div className="bg-slate-850/40 border border-slate-800/60 rounded-2xl p-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <span className="text-[8px] font-black text-rose-455 uppercase tracking-wider block mb-0.5">High</span>
-                      <span className="text-base font-black text-white">{selectedStation.highSeverityCount}</span>
+                      <span className="text-[8px] font-black text-rose-500 uppercase tracking-wider block mb-0.5">High</span>
+                      <span className="text-base font-black text-slate-800">{selectedStation.highSeverityCount}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-amber-455 uppercase tracking-wider block mb-0.5">Medium</span>
-                      <span className="text-base font-black text-white">{selectedStation.mediumSeverityCount}</span>
+                      <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider block mb-0.5">Medium</span>
+                      <span className="text-base font-black text-slate-800">{selectedStation.mediumSeverityCount}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-emerald-455 uppercase tracking-wider block mb-0.5">Low</span>
-                      <span className="text-base font-black text-white">{selectedStation.lowSeverityCount}</span>
+                      <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider block mb-0.5">Low</span>
+                      <span className="text-base font-black text-slate-800">{selectedStation.lowSeverityCount}</span>
                     </div>
                   </div>
 
                   {/* Primary Error Type */}
-                  <div className="bg-emerald-955/20 border border-emerald-900/30 rounded-2xl p-4">
-                    <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest block mb-1">Primary Error Type</span>
-                    <span className="text-sm font-black text-emerald-450 uppercase tracking-tight block">
+                  <div className="bg-emerald-50/40 border border-emerald-100/50 rounded-2xl p-4">
+                    <span className="text-[9px] font-black text-emerald-650 uppercase tracking-widest block mb-1">Primary Error Type</span>
+                    <span className="text-sm font-black text-emerald-700 uppercase tracking-tight block">
                       {selectedStation.primaryErrorType}
                     </span>
                     
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mt-3 mb-1">Reason Chosen As Primary</span>
-                    <p className="text-[11px] text-slate-300 font-medium leading-relaxed">
+                    <p className="text-[11px] text-slate-650 font-medium leading-relaxed">
                       This defect type was designated as the primary error reason because it has the highest frequency of occurrences among all recorded logs for this station over the baseline period.
                     </p>
                   </div>
 
                   {/* Mitigation Action */}
-                  <div className="bg-slate-950/60 border border-slate-850/60 rounded-2xl p-4">
+                  <div className="bg-slate-900 border border-slate-855 rounded-2xl p-4">
                     <span className="text-[9px] font-black text-slate-450 uppercase tracking-widest block mb-1">Mitigation Recommendations</span>
                     <p className="text-[11px] text-white font-bold leading-normal">
                       {selectedStation.riskLevel === 'Critical' ? (
