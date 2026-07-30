@@ -192,16 +192,25 @@ process.on('SIGINT', async () => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log("🔍 Diagnosing registered routes:");
-  app._router.stack.forEach(r => {
-    if (r.route) {
-      console.log(`   - ${Object.keys(r.route.methods).join(',').toUpperCase()} ${r.route.path}`);
-    } else if (r.name === 'router') {
-      r.handle.stack.forEach(sub => {
-        if (sub.route) {
-          console.log(`   - SUB ROUTE: ${Object.keys(sub.route.methods).join(',').toUpperCase()} ${sub.route.path}`);
+  try {
+    console.log("🔍 Diagnosing registered routes:");
+    const router = app._router || app.router;
+    if (router && router.stack) {
+      router.stack.forEach(r => {
+        if (r.route) {
+          console.log(`   - ${Object.keys(r.route.methods).join(',').toUpperCase()} ${r.route.path}`);
+        } else if (r.name === 'router') {
+          r.handle.stack.forEach(sub => {
+            if (sub.route) {
+              console.log(`   - SUB ROUTE: ${Object.keys(sub.route.methods).join(',').toUpperCase()} ${sub.route.path}`);
+            }
+          });
         }
       });
+    } else {
+      console.log("   - (Unable to read Express router stack: property undefined)");
     }
-  });
+  } catch (err) {
+    console.warn("⚠️ Route diagnostic warning:", err.message);
+  }
 });
