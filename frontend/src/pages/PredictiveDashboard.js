@@ -237,6 +237,43 @@ export default function PredictiveDashboard() {
     }
   };
 
+  // Calculation variables for hyper-simplified analytics engine
+  const totalHistoricalErrors = data.filter(d => !d.isForecast).reduce((sum, d) => sum + (d.actual || 0), 0);
+  const totalProjectedErrors = Math.round(data.filter(d => d.isForecast).reduce((sum, d) => sum + (d.predicted || 0), 0));
+
+  // Find department with maximum defects
+  const maxDept = departmentsData.length > 0 
+    ? departmentsData.reduce((prev, current) => (prev.totalDefects > current.totalDefects) ? prev : current, departmentsData[0])
+    : null;
+  const concentrationPercentage = totalHistoricalErrors && maxDept
+    ? Math.round((maxDept.totalDefects / totalHistoricalErrors) * 100)
+    : 0;
+  const maxDeptName = maxDept ? maxDept.departmentName : 'N/A';
+
+  // Generate hyper-simplified, cause-and-effect smart recommendation
+  const getSmartRecommendation = () => {
+    const errorType = maxDept?.primaryErrorType || 'General defect';
+    const deptName = maxDept?.departmentName || 'Production';
+    
+    let actionText = "Schedule preventative maintenance checkups and verify employee training logs.";
+    if (errorType.toLowerCase().includes('breakdown')) {
+      actionText = `Perform immediate preventative maintenance check on machinery in ${deptName} to reduce downtime.`;
+    } else if (errorType.toLowerCase().includes('power')) {
+      actionText = `Verify emergency backup power grids and electrical circuits in ${deptName}.`;
+    } else if (errorType.toLowerCase().includes('meeting') || errorType.toLowerCase().includes('health')) {
+      actionText = `Enforce mandatory health huddle check-ins and attendance tracking in ${deptName}.`;
+    } else if (errorType.toLowerCase().includes('yield') || errorType.toLowerCase().includes('target')) {
+      actionText = `Optimize line speed and check raw material tolerances in ${deptName}.`;
+    }
+    
+    return {
+      causeEffect: `Because you had ${totalHistoricalErrors} total errors previously (mostly driven by "${errorType}" in ${deptName}), your upcoming error count will be ${totalProjectedErrors}.`,
+      recommendation: actionText
+    };
+  };
+
+  const rec = getSmartRecommendation();
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       
@@ -364,49 +401,40 @@ export default function PredictiveDashboard() {
             {/* LEFT/CENTER COLUMN: Forecasting Chart & Model Info */}
             <div className="lg:col-span-2 flex flex-col gap-8">
               
-              {/* Model Summary Cards (Static Inline Descriptions for 100% Visibility) */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Model Summary Cards (Simplified Percentages & Counts Engine) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
-                {/* Rolling Average */}
+                {/* Historical Summary Card */}
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Average Daily Errors</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Historical defects (60 Days)</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-slate-800">{metrics.rollingAverage}</span>
-                    <span className="text-[10px] font-bold text-slate-400">errors/day</span>
+                    <span className="text-2xl font-black text-slate-800">{totalHistoricalErrors}</span>
+                    <span className="text-[10px] font-bold text-slate-400">Total Errors</span>
                   </div>
                   <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
-                    The average number of errors logged per day, giving higher weight to the most recent daily reports for current accuracy.
+                    Last 60 Days: {totalHistoricalErrors} Total Errors | {concentrationPercentage}% Concentration in {maxDeptName}
                   </p>
                 </div>
 
-                {/* Trend Velocity */}
+                {/* Future Projections Card */}
                 <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Trend Direction</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-2xl font-black text-slate-800">
-                      {metrics.trendVelocity > 0 ? 'Rising (+' : 'Falling ('}{metrics.trendVelocity})
-                    </span>
-                    {metrics.trendVelocity > 0 ? (
-                      <TrendingUp size={16} className="text-rose-500" />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Projected Defects (40 Days)</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-slate-800">{totalProjectedErrors}</span>
+                    <span className="text-[10px] font-bold text-slate-400">Projected Errors</span>
+                  </div>
+                  <div className="mt-2.5 border-t pt-2 border-slate-100 flex items-center justify-between">
+                    <span className="text-[9px] text-slate-450 font-bold">Status:</span>
+                    {totalProjectedErrors > (totalHistoricalErrors * 0.5) || totalProjectedErrors > 25 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-600 border border-rose-100">
+                        🔴 Alert / High Risk
+                      </span>
                     ) : (
-                      <TrendingDown size={16} className="text-emerald-500" />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
+                        🟢 Stable / Safe
+                      </span>
                     )}
                   </div>
-                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
-                    Shows if error frequency is going UP or DOWN. A falling trend means daily defect occurrences are reducing.
-                  </p>
-                </div>
-
-                {/* Standard Deviation */}
-                <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Predictability Index</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-slate-800">{metrics.standardDeviation}</span>
-                    <span className="text-[10px] font-bold text-slate-400">variance σ</span>
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
-                    Measures how much daily errors fluctuate. A lower variance means operations are consistent and stable.
-                  </p>
                 </div>
 
                 {/* ML Engine Status */}
@@ -427,32 +455,22 @@ export default function PredictiveDashboard() {
 
               </div>
 
-              {/* Friendly Guide Banner */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-indigo-100 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in duration-500">
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
-                    <Sparkles size={16} />
+              {/* Dedicated Smart Recommendation Card (Rule 2) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col gap-4 animate-in fade-in duration-500">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center">
+                    <AlertTriangle size={18} />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-indigo-950 tracking-wider">Quick Guide: Understanding the Predictive Graph</h4>
-                    <p className="text-[10px] text-indigo-900/80 font-semibold leading-relaxed mt-1">
-                      This graph lets you anticipate future defect rates to schedule preventative maintenance before problems escalate.
-                    </p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5 text-[9px] text-indigo-950 font-black uppercase tracking-wider">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" /> Past 60 Days: Observed Actuals
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-purple-500" /> Next 40 Days: AI Predictions
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-3.5 h-1.5 bg-purple-100 border border-purple-200 rounded" /> Light Purple Band: Fluctuation Range
-                      </span>
-                    </div>
-                  </div>
+                  <h4 className="text-xs font-black uppercase text-slate-200 tracking-wider">Smart Recommendation</h4>
                 </div>
-                <div className="bg-white/80 backdrop-blur-xs border border-indigo-100/50 px-3 py-2 rounded-xl text-[9px] text-indigo-950 font-bold max-w-[210px] leading-normal flex-shrink-0">
-                  💡 <span className="font-extrabold uppercase text-indigo-600 tracking-wider">Calibrations Trigger:</span> If the purple forecast line trends above <span className="text-rose-600">2.2 errors/day</span>, look at the Station Risk Table to inspect high-risk stations.
+                <div className="border-t border-slate-800/80 pt-3">
+                  <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                    {rec.causeEffect}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2 bg-amber-500/5 border border-amber-500/15 rounded-xl px-4 py-2.5">
+                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider shrink-0">Action Plan:</span>
+                    <span className="text-[10px] text-amber-400 font-black">{rec.recommendation}</span>
+                  </div>
                 </div>
               </div>
 
