@@ -7,3 +7,22 @@
 body {
   margin: 0;
 }
+
+/* Shifting ambient glow animation mimicking Gemini's mobile UI */
+.gemini-luminous-bg {
+  background: linear-gradient(-45deg, #f3e8ff, #e0f2fe, #d1fae5, #fae8ff, #f8fafc);
+  background-size: 400% 400%;
+  animation: geminiFlow 16s ease infinite;
+}
+
+@keyframes geminiFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

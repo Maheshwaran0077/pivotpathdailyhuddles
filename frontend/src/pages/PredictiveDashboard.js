@@ -275,7 +275,7 @@ export default function PredictiveDashboard() {
   const rec = getSmartRecommendation();
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-12 font-sans selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen gemini-luminous-bg pb-12 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       
       {/* Top Header */}
       <div className="bg-white border-b border-slate-200/80 sticky top-[73px] z-40 px-6 py-4">
@@ -456,20 +456,20 @@ export default function PredictiveDashboard() {
               </div>
 
               {/* Dedicated Smart Recommendation Card (Rule 2) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col gap-4 animate-in fade-in duration-500">
+              <div className="bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl p-6 shadow-sm flex flex-col gap-4 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center">
+                  <div className="p-2 bg-amber-500/10 text-amber-650 rounded-xl flex items-center justify-center">
                     <AlertTriangle size={18} />
                   </div>
-                  <h4 className="text-xs font-black uppercase text-slate-200 tracking-wider">Smart Recommendation</h4>
+                  <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Smart Recommendation</h4>
                 </div>
-                <div className="border-t border-slate-800/80 pt-3">
-                  <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                <div className="border-t border-slate-250/50 pt-3">
+                  <p className="text-[11px] text-slate-655 font-bold leading-relaxed">
                     {rec.causeEffect}
                   </p>
-                  <div className="mt-3 flex items-center gap-2 bg-amber-500/5 border border-amber-500/15 rounded-xl px-4 py-2.5">
-                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider shrink-0">Action Plan:</span>
-                    <span className="text-[10px] text-amber-400 font-black">{rec.recommendation}</span>
+                  <div className="mt-3 flex items-center gap-2 bg-amber-500/10 border border-amber-250/20 backdrop-blur-xs rounded-xl px-4 py-2.5">
+                    <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider shrink-0">Action Plan:</span>
+                    <span className="text-[10px] text-amber-850 font-black">{rec.recommendation}</span>
                   </div>
                 </div>
               </div>
