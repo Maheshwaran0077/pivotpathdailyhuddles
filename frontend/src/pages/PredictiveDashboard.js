@@ -37,60 +37,82 @@ const CosmicHeaderBackground = () => {
     
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.height = window.innerHeight * 0.7;
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     
     // Create large, slow moving organic blobs for the mesh gradient
-    // Hues: soft violet, warm pink, vivid red, subtle green
+    // Hues: Deep Indigo, Vibrant Magenta, Luminous Cyan, Coral Red, Amber Gold, Violet, Emerald Green
     const blobs = [
       {
         x: Math.random(),
         y: Math.random(),
-        vx: 0.0005,
-        vy: 0.0003,
+        vx: 0.0018,
+        vy: 0.0012,
         baseRadius: 0.35, // fraction of screen width
-        color: 'rgba(139, 92, 246, 0.12)' // soft violet
+        color: 'rgba(67, 56, 202, 0.40)', // Deep Indigo
+        colorMid: 'rgba(67, 56, 202, 0.15)'
       },
       {
         x: Math.random(),
         y: Math.random(),
-        vx: -0.0004,
-        vy: 0.0005,
+        vx: -0.0015,
+        vy: 0.0018,
         baseRadius: 0.40,
-        color: 'rgba(236, 72, 153, 0.14)' // warm pink
+        color: 'rgba(219, 39, 119, 0.42)', // Vibrant Magenta
+        colorMid: 'rgba(219, 39, 119, 0.16)'
       },
       {
         x: Math.random(),
         y: Math.random(),
-        vx: 0.0003,
-        vy: -0.0004,
+        vx: 0.0012,
+        vy: -0.0015,
         baseRadius: 0.30,
-        color: 'rgba(239, 68, 68, 0.08)' // vivid red
+        color: 'rgba(6, 182, 212, 0.38)', // Luminous Cyan
+        colorMid: 'rgba(6, 182, 212, 0.14)'
       },
       {
         x: Math.random(),
         y: Math.random(),
-        vx: -0.0005,
-        vy: -0.0003,
+        vx: -0.0018,
+        vy: -0.0012,
         baseRadius: 0.28,
-        color: 'rgba(34, 197, 94, 0.07)' // subtle green
+        color: 'rgba(225, 29, 72, 0.36)', // Intense Coral Red
+        colorMid: 'rgba(225, 29, 72, 0.12)'
       },
       {
         x: Math.random(),
         y: Math.random(),
-        vx: 0.0004,
-        vy: -0.0005,
+        vx: 0.0015,
+        vy: -0.0018,
         baseRadius: 0.38,
-        color: 'rgba(139, 92, 246, 0.09)' // second soft violet blob for complexity
+        color: 'rgba(245, 158, 11, 0.35)', // Amber Gold
+        colorMid: 'rgba(245, 158, 11, 0.12)'
+      },
+      {
+        x: Math.random(),
+        y: Math.random(),
+        vx: -0.0012,
+        vy: 0.0015,
+        baseRadius: 0.36,
+        color: 'rgba(139, 92, 246, 0.40)', // Vibrant Violet
+        colorMid: 'rgba(139, 92, 246, 0.15)'
+      },
+      {
+        x: Math.random(),
+        y: Math.random(),
+        vx: 0.0014,
+        vy: -0.0014,
+        baseRadius: 0.32,
+        color: 'rgba(16, 185, 129, 0.32)', // Emerald Green
+        colorMid: 'rgba(16, 185, 129, 0.10)'
       }
     ];
     
     const animate = () => {
-      // Clear with clean crisp white
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear transparently to allow blending with the document background
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       const maxDim = Math.max(canvas.width, canvas.height);
       
@@ -104,7 +126,7 @@ const CosmicHeaderBackground = () => {
         if (b.y < 0 || b.y > 1) b.vy *= -1;
         
         // Dynamic breathing scale for organic feel
-        const time = Date.now() * 0.0008;
+        const time = Date.now() * 0.0026;
         const breathScale = 1.0 + Math.sin(time + b.x * 10) * 0.12;
         const radius = b.baseRadius * maxDim * breathScale;
         
@@ -114,7 +136,7 @@ const CosmicHeaderBackground = () => {
         // Draw the blob as a smooth radial gradient fading to transparent
         const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
         grad.addColorStop(0, b.color);
-        grad.addColorStop(0.5, b.color.replace('0.', '0.05')); // softer fade mid-way
+        grad.addColorStop(0.5, b.colorMid);
         grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.fillStyle = grad;
@@ -134,7 +156,7 @@ const CosmicHeaderBackground = () => {
   }, []);
   
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none select-none z-0">
+    <div className="fixed top-0 left-0 right-0 h-[70vh] overflow-hidden pointer-events-none select-none z-0 filter blur-[65px] opacity-90">
       <canvas id="cosmic-canvas" className="w-full h-full block" />
     </div>
   );
@@ -391,7 +413,7 @@ export default function PredictiveDashboard() {
       <CosmicHeaderBackground />
       
       {/* Top Header */}
-      <div className="bg-white/40 border-b border-slate-200/50 sticky top-[73px] z-40 px-6 py-4 backdrop-blur-md">
+      <div className="bg-white/40 border-b border-slate-200/50 relative z-40 px-6 py-2.5 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <button 
@@ -422,7 +444,7 @@ export default function PredictiveDashboard() {
       </div>
 
       {/* FILTER CONTROL BAR */}
-      <div className="bg-white/60 border-b border-slate-200/50 py-3.5 px-6 sticky top-[148px] z-30 shadow-xs backdrop-blur-md">
+      <div className="bg-white/60 border-b border-slate-200/50 py-3.5 px-6 sticky top-[69px] z-30 shadow-xs backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-6 text-xs">
           
           {/* Department selector */}

@@ -369,6 +369,8 @@ router.get('/forecast', async (req, res) => {
       }));
 
       const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+      console.log(`[ML SERVICE] Initiating request to Python forecasting engine at ${ML_SERVICE_URL}/predict with ${payload.length} data points.`);
+
       const pyResponse = await fetch(`${ML_SERVICE_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,12 +378,18 @@ router.get('/forecast', async (req, res) => {
       });
 
       if (!pyResponse.ok) {
+        let errText = '';
+        try {
+          errText = await pyResponse.text();
+        } catch (_) {}
+        console.error(`❌ [ML SERVICE HTTP ERROR] FastAPI returned status ${pyResponse.status} ${pyResponse.statusText}. Response body: ${errText}`);
         throw new Error(`FastAPI returned status code ${pyResponse.status}`);
       }
 
       predictionResult = await pyResponse.json();
+      console.log(`[ML SERVICE] Successfully received forecast predictions from Python engine.`);
     } catch (mlErr) {
-      console.warn("⚠️ Python FastAPI forecasting service offline. Falling back to local Node.js engine:", mlErr.message);
+      console.error(`❌ [ML SERVICE CONNECTION ERROR] Failed to communicate with Python microservice. Error details:`, mlErr);
       mlServiceStatus = 'offline';
     }
 

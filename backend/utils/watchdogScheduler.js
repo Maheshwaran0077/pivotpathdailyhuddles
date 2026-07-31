@@ -59,6 +59,17 @@ const findSuperadminEmails = async () => {
     .filter((address) => !!address);
 };
 
+const findSupervisorsForDepartmentAndShift = async (dept, shift) => {
+  const deptRegex = getDeptRegex(dept);
+  const shiftRegex = new RegExp(`(^|,)\\s*${shift}\\s*(,|$)`);
+  const supervisors = await User.find({
+    role: 'supervisor',
+    department: { $regex: deptRegex },
+    shift: { $regex: shiftRegex }
+  }).lean();
+  return supervisors;
+};
+
 const buildWatchdogEmailHtml = ({ deptName, shift, date, hodName, status }) => {
   return `
   <div style="font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2937;">
@@ -98,12 +109,15 @@ const buildWatchdogEmailHtml = ({ deptName, shift, date, hodName, status }) => {
   </div>`;
 };
 
-const sendWatchdogEmail = async ({ hodEmail, hodName, superadminEmails, deptName, shift, date }) => {
+const sendWatchdogEmail = async ({ hodEmail, hodName, superadminEmails, supervisorEmails, deptName, shift, date, status }) => {
   const transporter = getTransporter();
   const subject = `[PivotPath Watchdog] Critical Non-Compliance — ${deptName}, Shift ${shift}`;
-  const status = 'CRITICAL NON-COMPLIANCE';
   const html = buildWatchdogEmailHtml({ deptName, shift, date, hodName, status });
-  const cc = Array.isArray(superadminEmails) && superadminEmails.length > 0 ? superadminEmails.join(', ') : undefined;
+
+  const ccList = [];
+  if (Array.isArray(superadminEmails)) ccList.push(...superadminEmails);
+  if (Array.isArray(supervisorEmails)) ccList.push(...supervisorEmails);
+  const cc = ccList.length > 0 ? ccList.join(', ') : undefined;
 
   const mailOptions = {
     from: process.env.SMTP_FROM || `"PivotPath Watchdog" <${process.env.SMTP_USER}>`,
@@ -118,21 +132,74 @@ const sendWatchdogEmail = async ({ hodEmail, hodName, superadminEmails, deptName
 };
 
 const auditDepartmentShift = async (dept, shift) => {
-  const date = getIstDateString();
+  const date = getIstDateString(); // "YYYY-MM-DD"
   const deptName = DEPT_LABELS[dept] || dept.toUpperCase();
 
-  const existingMetric = await Metric.findOne({ date, dept, shift }).lean();
-  if (existingMetric) {
+  // Find Q, D, S metrics for this department
+  const metrics = await Metric.find({
+    dept,
+    letter: { $in: ['Q', 'D', 'S'] }
+  }).lean();
+
+  let compliant = true;
+  let missingModules = [];
+
+  if (!metrics || metrics.length === 0) {
+    compliant = false;
+    missingModules = ['Q', 'D', 'S'];
+  } else {
+    for (const letter of ['Q', 'D', 'S']) {
+      const metricDoc = metrics.find(m => m.letter === letter);
+      if (!metricDoc) {
+        compliant = false;
+        missingModules.push(letter);
+        continue;
+      }
+
+      const shiftData = metricDoc.shifts?.[shift] || {};
+      const logs = Array.isArray(shiftData.issueLogs) ? shiftData.issueLogs : [];
+
+      const hasLogToday = logs.some(l => {
+        const dStr = l.rawDate || (l.date && l.date.split('/').reverse().join('-'));
+        return dStr === date;
+      });
+
+      if (!hasLogToday) {
+        compliant = false;
+        missingModules.push(letter);
+      }
+    }
+  }
+
+  if (compliant) {
     return { compliant: true, dept, shift, date };
   }
+
+  const supervisors = await findSupervisorsForDepartmentAndShift(dept, shift);
+  const supervisorEmails = supervisors
+    .map(s => s.gmail || s.email)
+    .filter(address => !!address);
 
   const hod = await findHodForDepartment(dept);
   const hodEmail = (hod && (hod.gmail || hod.email)) || process.env.FALLBACK_HOD_EMAIL || 'admin-fallback@company.com';
   const hodName = (hod && hod.name) || 'HOD';
   const superadminEmails = await findSuperadminEmails();
 
-  const info = await sendWatchdogEmail({ hodEmail, hodName, superadminEmails, deptName, shift, date });
-  return { compliant: false, dept, shift, date, hodEmail, superadminEmails, messageId: info.messageId };
+  const missingModulesStr = missingModules.join(', ');
+  const status = `MISSING UPDATE FOR MODULE(S): ${missingModulesStr}`;
+
+  const info = await sendWatchdogEmail({
+    hodEmail,
+    hodName,
+    superadminEmails,
+    supervisorEmails,
+    deptName,
+    shift,
+    date,
+    status
+  });
+
+  return { compliant: false, dept, shift, date, hodEmail, supervisorEmails, superadminEmails, messageId: info.messageId };
 };
 
 const runWatchdogCheck = async (shift) => {

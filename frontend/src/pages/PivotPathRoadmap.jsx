@@ -502,7 +502,7 @@ export default function PivotPathRoadmap() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
 
       {/* Header section with styling inspired by modern light-mode monitoring consoles */}
-      <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
+      <header className="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-[69px] z-40 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/')}

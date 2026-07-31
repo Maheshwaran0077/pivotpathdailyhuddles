@@ -17,7 +17,18 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ML_Service")
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="QDSHI ML Predictive Error Forecasting Microservice")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class DefectDataPoint(BaseModel):
     date: str

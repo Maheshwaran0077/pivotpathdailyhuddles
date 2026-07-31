@@ -81,10 +81,10 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="flex justify-between items-center px-6 py-3 bg-white shadow-sm border-b sticky top-0 z-50">
+    <nav className="flex justify-between items-center px-6 py-2.5 bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="flex items-center gap-4">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition">
-          <img src={logo} alt="PivotPath Logo" className="h-16 w-auto" />
+          <img src={logo} alt="PivotPath Logo" className="h-12 w-auto" />
           <span className="text-lg font-bold text-slate-800 hidden sm:block">{t('navbar.dailyHuddles')}</span>
         </Link>
 
