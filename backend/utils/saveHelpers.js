@@ -16,6 +16,7 @@ const formatISTTime = (istDate) => {
   return `${h}:${m}`;
 };
 
+
 const formatISTDate = (istDate) => istDate.toISOString().split('T')[0];
 
 // Returns { allowed: true } or { allowed: false, message }

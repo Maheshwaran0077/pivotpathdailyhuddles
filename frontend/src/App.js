@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import Navbar from './components/Navbar';
 import CircularTracker from './components/CircularTracker';
 import QualityPage from './pages/Quality';
@@ -21,6 +22,7 @@ import PlantDashboard from './pages/PlantDashboard';
 import PredictiveDashboard from './pages/PredictiveDashboard';
 import PivotPathLogo from './assest/pivotPathLogo.svg';
 import PivotPathRoadmap from './pages/PivotPathRoadmap';
+import SuperAdminChatbot from './components/SuperAdminChatbot';
 
 import { DEPARTMENTS, MODULES, SPECIAL_DEPARTMENTS, ALL_DEPARTMENTS } from './departments';
 
@@ -708,6 +710,7 @@ const ModuleRoute = ({ user }) => {
 // ─────────────────────────────────────────────
 function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('userInfo')));
+  const [chatbotHods, setChatbotHods] = useState([]);
 
   useEffect(() => {
     const sync = () => setUser(JSON.parse(localStorage.getItem('userInfo')));
@@ -719,10 +722,23 @@ function App() {
     };
   }, []);
 
+  // Fetch HODs for the global superadmin chatbot
+  useEffect(() => {
+    if (user?.role === 'superadmin') {
+      axios.get(`${API}/api/users/all/hod`)
+        .then((res) => setChatbotHods(res.data || []))
+        .catch(() => {});
+    } else {
+      setChatbotHods([]);
+    }
+  }, [user]);
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 font-sans selection:bg-emerald-100 selection:text-emerald-900">
         {user && <Navbar />}
+        {/* Global Superadmin AI Chatbot — visible on every page */}
+        {user?.role === 'superadmin' && <SuperAdminChatbot hods={chatbotHods} />}
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
           <Route path="/" element={!user ? <Navigate to="/login" /> : <Dashboard />} />
