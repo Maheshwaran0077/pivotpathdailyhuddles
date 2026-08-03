@@ -116,6 +116,17 @@ router.get('/forecast', async (req, res) => {
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     sixtyDaysAgo.setHours(0, 0, 0, 0);
 
+    // Auto-bootstrap checking: Seed if empty to prevent zero-value initial states
+    try {
+      const defectCount = await FactoryDefect.countDocuments();
+      if (defectCount === 0) {
+        console.log("FactoryDefect collection is empty. Auto-bootstrapping dummy defects telemetry...");
+        await seedDummyDefects();
+      }
+    } catch (dbErr) {
+      console.error("Auto-bootstrapping checks encountered an issue:", dbErr.message);
+    }
+
     const METRIC_DEPT_TO_FULL = {
       fgmw: 'Finished Good Material Warehouse',
       pmw: 'Packing Material Warehouse',
@@ -244,6 +255,24 @@ router.get('/forecast', async (req, res) => {
       });
     } catch (err) {
       console.error("Error reading health defects for forecasting:", err.message);
+    }
+
+    // 3. Fetch from FactoryDefect collection
+    try {
+      const dbDefects = await FactoryDefect.find({ timestamp: { $gte: sixtyDaysAgo } }).lean();
+      dbDefects.forEach(d => {
+        defects.push({
+          timestamp: d.timestamp,
+          stationId: d.stationId,
+          errorType: d.errorType,
+          department: d.department,
+          pillar: d.pillar,
+          shift: d.shift,
+          severity: d.severity
+        });
+      });
+    } catch (err) {
+      console.error("Error reading FactoryDefect collection for forecasting:", err.message);
     }
 
     // Sort by timestamp

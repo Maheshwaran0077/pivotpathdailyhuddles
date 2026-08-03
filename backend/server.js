@@ -1,9 +1,10 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
-const express  = require('express');
-const mongoose = require('mongoose');
-const cors     = require('cors');
-const dns      = require('dns');
-const path     = require('path'); // ✅ Added for serving frontend compilation files
+const express       = require('express');
+const mongoose      = require('mongoose');
+const cors          = require('cors');
+const dns           = require('dns');
+const path          = require('path');  // ✅ Added for serving frontend compilation files
+const { spawn }     = require('child_process');
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -189,9 +190,69 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
   
+// ─────────────────────────────────────────────────────────────────────────────
+// ML MICROSERVICE AUTO-LAUNCHER
+// Spawns the Python FastAPI forecasting engine automatically so that the
+// Node.js backend never fires ECONNREFUSED when calling /predict.
+// ─────────────────────────────────────────────────────────────────────────────
+let mlProcess = null;
+
+function startMLService() {
+  const mlServiceDir = path.join(__dirname, '..', 'ml-service');
+  const script       = path.join(mlServiceDir, 'main.py');
+  const pythonBin    = process.platform === 'win32' ? 'python' : 'python3';
+  const ML_PORT      = parseInt(process.env.ML_SERVICE_PORT || '5001', 10);
+
+  // Probe port first — if it's already bound, skip spawning
+  const net = require('net');
+  const probe = net.createConnection({ port: ML_PORT, host: '127.0.0.1' });
+
+  probe.on('connect', () => {
+    probe.destroy();
+    console.log(`✅ [ML SERVICE] Port ${ML_PORT} already in use — reusing existing microservice.`);
+  });
+
+  probe.on('error', () => {
+    // Port is free — safe to spawn
+    probe.destroy();
+    console.log(`🐍 [ML SERVICE] Starting Python forecasting microservice on port ${ML_PORT}...`);
+
+    mlProcess = spawn(pythonBin, [script], {
+      cwd: mlServiceDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false
+    });
+
+    mlProcess.stdout.on('data', (data) => process.stdout.write(`[ML] ${data}`));
+    mlProcess.stderr.on('data', (data) => process.stderr.write(`[ML] ${data}`));
+
+    mlProcess.on('close', (code) => {
+      if (code !== 0 && code !== null) {
+        console.warn(`⚠️  [ML SERVICE] Python process exited (code ${code}). Retrying in 5 s...`);
+        setTimeout(startMLService, 5000);
+      } else {
+        console.log(`🛑 [ML SERVICE] Python process stopped (code ${code}).`);
+      }
+    });
+
+    mlProcess.on('error', (err) => {
+      console.error(`❌ [ML SERVICE] Failed to spawn Python: ${err.message}`);
+      console.error('   Ensure Python is installed and on your PATH.');
+    });
+  });
+}
+
+// Shut down ML service when Node exits
+process.on('exit', () => { if (mlProcess) mlProcess.kill(); });
+process.on('SIGTERM', () => { if (mlProcess) mlProcess.kill(); process.exit(0); });
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+
+  // Auto-start the Python ML forecasting microservice
+  startMLService();
+
   try {
     console.log("🔍 Diagnosing registered routes:");
     const router = app._router || app.router;

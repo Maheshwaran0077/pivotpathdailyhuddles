@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, 
-  CartesianGrid, Tooltip 
+  CartesianGrid, Tooltip, Bar, Legend
 } from 'recharts';
 import { 
   Activity, Info, AlertTriangle, ChevronLeft, RefreshCw, 
   TrendingUp, TrendingDown, Gauge, ShieldAlert, BarChart3,
-  Settings, ClipboardCheck, Wrench, Truck, Package, PackageCheck, Archive, Layers, Eye, GitFork, X, Sparkles
+  Settings, ClipboardCheck, Wrench, Truck, Package, PackageCheck, Archive, Layers, Eye, GitFork, X, Sparkles, Zap
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
@@ -24,6 +24,30 @@ const DEPARTMENTS_LIST = [
   'Secondary Packing Production',
   'Facilities'
 ];
+
+const DEPT_MAP = {
+  'PPP-1': 'Primary Packing Production',
+  'PRO-2': 'Production',
+  'SPP-3': 'Secondary Packing Production',
+  'FGMW-1': 'Finished Good Material Warehouse',
+  'PMW-2': 'Packing Material Warehouse',
+  'RMW-1': 'Raw Material Warehouse',
+  'FAC-1': 'Facilities',
+  'QCMAD-2': 'QC & Microbiology & AD Lab',
+  'POP-1': 'Post Production'
+};
+
+const DEPT_ABBR = {
+  'Raw Material Warehouse': 'RMW',
+  'Packing Material Warehouse': 'PMW',
+  'QC & Microbiology & AD Lab': 'QCMAD',
+  'Production': 'PRO',
+  'Primary Packing Production': 'PPP',
+  'Secondary Packing Production': 'SPP',
+  'Post Production': 'POP',
+  'Finished Good Material Warehouse': 'FGMW',
+  'Facilities': 'FAC'
+};
 
 const PILLARS_LIST = ['Quality', 'Delivery', 'Safety', 'Health'];
 const SHIFTS_LIST = ['1', '2', '3'];
@@ -297,6 +321,31 @@ export default function PredictiveDashboard() {
     return null;
   };
 
+  const CustomProjectionTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const point = payload[0].payload;
+      return (
+        <div className="bg-[#0F172A] border-2 border-slate-700 text-white p-3.5 rounded-2xl shadow-2xl text-[11px] font-bold leading-relaxed z-50">
+          <p className="font-extrabold uppercase text-[8.5px] tracking-widest text-slate-400 mb-1.5">🔮 Projected Defects</p>
+          <p className="font-black text-sm text-slate-150 mb-2">{point.date}</p>
+          <div className="flex flex-col gap-1.5 border-t border-slate-800 pt-2.5 mt-1.5">
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-355">Predicted:</span>
+              <span className="font-black text-purple-400 text-sm">{point.predicted} Defects</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-slate-400">Confidence Range:</span>
+              <span className="font-bold text-purple-355">
+                [{point.lowerBound} - {point.upperBound}]
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const getDeptStats = (name) => {
     return departmentsData.find(d => d.departmentName === name) || { 
       totalDefects: 0, 
@@ -304,6 +353,70 @@ export default function PredictiveDashboard() {
       mediumSeverityCount: 0, 
       lowSeverityCount: 0, 
       primaryErrorType: "None Detected" 
+    };
+  };
+
+  const getZoneHealthScoreAndColor = (zoneKey) => {
+    let deptName = '';
+    switch (zoneKey) {
+      case 'rmw': deptName = 'Raw Material Warehouse'; break;
+      case 'qcmad': deptName = 'QC & Microbiology & AD Lab'; break;
+      case 'pop': deptName = 'Post Production'; break;
+      case 'pmw': deptName = 'Packing Material Warehouse'; break;
+      case 'pro': deptName = 'Production'; break;
+      case 'spp': deptName = 'Secondary Packing Production'; break;
+      case 'fac': deptName = 'Facilities'; break;
+      case 'ppp': deptName = 'Primary Packing Production'; break;
+      case 'fgmw': deptName = 'Finished Good Material Warehouse'; break;
+      default: deptName = '';
+    }
+
+    const stats = getDeptStats(deptName);
+    const { totalDefects, highSeverityCount, mediumSeverityCount, lowSeverityCount } = stats;
+    const penalty = (highSeverityCount * 15) + (mediumSeverityCount * 7) + (lowSeverityCount * 3);
+    const score = Math.max(0, 100 - penalty);
+
+    // Color definitions (DARKER & MORE SATURATED)
+    let colorClass = 'from-blue-700/50 to-blue-800/10'; // Deep Blue (Optimal)
+    let dotColor = 'bg-blue-700';
+    let statusText = 'Optimal';
+    let legendColor = '#1D4ED8';
+    let glowColor = 'rgba(29, 78, 216, 0.65)'; // Rich dark blue glow
+
+    if (score < 50) {
+      colorClass = 'from-red-700/60 to-red-900/10'; // Dark Red (High Error)
+      dotColor = 'bg-red-700';
+      statusText = 'High Error';
+      legendColor = '#B91C1C';
+      glowColor = 'rgba(185, 28, 28, 0.70)'; // Darker Red
+    } else if (score < 80) {
+      colorClass = 'from-amber-600/55 to-amber-700/10'; // Dark Yellow/Amber (Moderate Error)
+      dotColor = 'bg-amber-600';
+      statusText = 'Moderate Error';
+      legendColor = '#D97706';
+      glowColor = 'rgba(217, 119, 6, 0.65)'; // Darker Yellow
+    } else if (score < 95) {
+      colorClass = 'from-emerald-700/60 to-emerald-800/10'; // Dark Green (Low Error)
+      dotColor = 'bg-emerald-700';
+      statusText = 'Low Error';
+      legendColor = '#047857';
+      glowColor = 'rgba(4, 120, 87, 0.65)'; // Darker Green
+    } else if (score < 99) {
+      colorClass = 'from-cyan-700/55 to-cyan-800/10'; // Dark Cyan (Optimal/Cyan)
+      dotColor = 'bg-cyan-700';
+      statusText = 'Optimal';
+      legendColor = '#0891B2';
+      glowColor = 'rgba(8, 145, 178, 0.65)'; // Darker Cyan
+    }
+
+    return {
+      score,
+      colorClass,
+      dotColor,
+      statusText,
+      legendColor,
+      glowColor,
+      stats
     };
   };
 
@@ -373,7 +486,33 @@ export default function PredictiveDashboard() {
 
   // Calculation variables for hyper-simplified analytics engine
   const totalHistoricalErrors = data.filter(d => !d.isForecast).reduce((sum, d) => sum + (d.actual || 0), 0);
-  const totalProjectedErrors = Math.round(data.filter(d => d.isForecast).reduce((sum, d) => sum + (d.predicted || 0), 0));
+  
+  const forecastPoints = data.filter(d => d.isForecast);
+  const totalProjectedErrors = Math.round(forecastPoints.reduce((sum, d) => sum + (d.predicted || 0), 0));
+  
+  // Calculate standard deviation of historical daily defect counts
+  const histPoints = data.filter(d => !d.isForecast);
+  const histCount = histPoints.length || 60;
+  const histMean = totalHistoricalErrors / histCount;
+  const histVariance = histPoints.reduce((sum, d) => sum + Math.pow((d.actual || 0) - histMean, 2), 0) / histCount;
+  const histSD = Math.max(0.5, Math.sqrt(histVariance));
+  
+  // Standard error scaled for the 40-day projection period
+  const sumSD = histSD * Math.sqrt(40);
+  
+  const totalLowerBound = Math.max(0, Math.round(totalProjectedErrors - sumSD));
+  const totalUpperBound = Math.round(totalProjectedErrors + sumSD);
+
+  const getPotentialCount = (isForecast) => {
+    const days = isForecast ? 40 : 60;
+    const depts = selectedDept === 'Overall' ? DEPARTMENTS_LIST.length : 1;
+    const shifts = selectedShift === 'Overall' ? SHIFTS_LIST.length : 1;
+    return days * depts * shifts;
+  };
+  const potentialHist = getPotentialCount(false);
+  const potentialProj = getPotentialCount(true);
+  const historicalPercentage = potentialHist > 0 ? (Math.min(100, (totalHistoricalErrors / potentialHist) * 100)).toFixed(1) + "%" : "0.0%";
+  const projectedPercentage = potentialProj > 0 ? (Math.min(100, (totalProjectedErrors / potentialProj) * 100)).toFixed(1) + "%" : "0.0%";
 
   // Find department with maximum defects
   const maxDept = departmentsData.length > 0 
@@ -408,6 +547,77 @@ export default function PredictiveDashboard() {
 
   const rec = getSmartRecommendation();
 
+  const getCategory = (errorType) => {
+    const err = (errorType || '').toLowerCase();
+    if (err.includes('breakdown') || err.includes('power') || err.includes('no power')) {
+      return 'downtime';
+    }
+    if (err.includes('manpower') || err.includes('no manpower')) {
+      return 'manpower';
+    }
+    if (err.includes('reject') || err.includes('quality reject')) {
+      return 'reject';
+    }
+    if (err.includes('safety') || err.includes('incident') || err.includes('miss') || err.includes('unsafe')) {
+      return 'safety';
+    }
+    if (err.includes('meeting') || err.includes('huddle') || err.includes('attendance')) {
+      return 'health';
+    }
+    return 'other';
+  };
+
+  const processedHistoricalData = DEPARTMENTS_LIST.map(deptName => {
+    const counts = {
+      downtime: 0,
+      manpower: 0,
+      reject: 0,
+      safety: 0,
+      health: 0,
+      other: 0,
+    };
+
+    data.filter(point => !point.isForecast).forEach(point => {
+      if (point.logs && point.logs.length > 0) {
+        point.logs.forEach(log => {
+          const logDept = DEPT_MAP[log.station] || log.department;
+          if (logDept === deptName) {
+            const cat = getCategory(log.errorType);
+            counts[cat] += 1;
+          }
+        });
+      }
+    });
+
+    const deptStats = getDeptStats(deptName);
+    const totalDefects = Object.values(counts).reduce((sum, v) => sum + v, 0);
+    if (totalDefects === 0 && deptStats && deptStats.totalDefects > 0) {
+      const fallbackCat = selectedPillar === 'Quality' ? 'reject' :
+                          selectedPillar === 'Safety' ? 'safety' :
+                          selectedPillar === 'Health' ? 'health' : 'other';
+      counts[fallbackCat] = deptStats.totalDefects;
+    }
+
+    return {
+      name: DEPT_ABBR[deptName] || deptName,
+      fullName: deptName,
+      ...counts
+    };
+  });
+
+  const potentialDailyCount = (selectedDept === 'Overall' ? DEPARTMENTS_LIST.length : 1) * (selectedShift === 'Overall' ? SHIFTS_LIST.length : 1);
+
+  const forecastDataWithRates = data
+    .filter(point => point.isForecast)
+    .map(point => {
+      return {
+        date: point.date,
+        predicted: parseFloat(point.predicted.toFixed(2)),
+        lowerBound: parseFloat(point.lowerBound.toFixed(2)),
+        upperBound: parseFloat(point.upperBound.toFixed(2)),
+      };
+    });
+
   return (
     <div className="min-h-screen bg-white pb-12 font-sans selection:bg-emerald-100 selection:text-emerald-900 relative overflow-x-hidden">
       <CosmicHeaderBackground />
@@ -418,15 +628,15 @@ export default function PredictiveDashboard() {
           <div>
             <button 
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-850 transition mb-1"
+              className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-slate-700 hover:text-slate-900 transition mb-1"
             >
               <ChevronLeft size={13} /> Return Dashboard Focus
             </button>
-            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
               <Activity className="text-indigo-500 animate-pulse" size={24} /> 
               Predictive Defect Forecasting Hub
             </h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+            <p className="text-xs text-slate-650 font-bold uppercase tracking-widest mt-0.5">
               Regression Analytics & rolling 10-day risk models (Live Database Synced)
             </p>
           </div>
@@ -449,7 +659,7 @@ export default function PredictiveDashboard() {
           
           {/* Department selector */}
           <div className="flex flex-col gap-1">
-            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-450">Operational Department</label>
+            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-700">Operational Department</label>
             <select 
               value={selectedDept} 
               onChange={(e) => setSelectedDept(e.target.value)}
@@ -464,7 +674,7 @@ export default function PredictiveDashboard() {
 
           {/* Pillar selector */}
           <div className="flex flex-col gap-1">
-            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-455">Defect Pillar Focus</label>
+            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-700">Defect Pillar Focus</label>
             <select 
               value={selectedPillar} 
               onChange={(e) => setSelectedPillar(e.target.value)}
@@ -479,7 +689,7 @@ export default function PredictiveDashboard() {
 
           {/* Shift selector */}
           <div className="flex flex-col gap-1">
-            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-455">Active Shift Log</label>
+            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-700">Active Shift Log</label>
             <select 
               value={selectedShift} 
               onChange={(e) => setSelectedShift(e.target.value)}
@@ -494,7 +704,7 @@ export default function PredictiveDashboard() {
 
           {/* Track button */}
           <div className="flex flex-col gap-1 items-center">
-            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-450 text-center">Visual Node Map</label>
+            <label className="font-extrabold uppercase tracking-widest text-[9px] text-slate-700 text-center">Visual Node Map</label>
             <button
               onClick={() => navigate('/track')}
               className="bg-white/80 hover:bg-slate-50 text-slate-700 font-extrabold text-xs uppercase tracking-wider py-1.5 px-5 rounded-lg flex items-center justify-center gap-1.5 shadow-sm border border-slate-200 hover:border-slate-300 transition w-32"
@@ -531,262 +741,572 @@ export default function PredictiveDashboard() {
         </div>
       ) : (
         <>
-          <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
+          {/* Bento-grid space optimized dashboard container */}
+          <div className="max-w-7xl mx-auto px-6 mt-8 flex flex-col gap-8 relative z-10 animate-in fade-in duration-500">
             
-            {/* LEFT/CENTER COLUMN: Forecasting Chart & Model Info */}
-            <div className="lg:col-span-2 flex flex-col gap-8">
+            {/* ROW 1: Sleek Summary KPI Strip (4 Columns) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               
-              {/* Model Summary Cards (Simplified Percentages & Counts Engine) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Historical Summary Card */}
-                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Historical defects (60 Days)</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-slate-800">{totalHistoricalErrors}</span>
-                    <span className="text-[10px] font-bold text-slate-400">Total Errors</span>
+              {/* Historical Summary Card */}
+              <div className="backdrop-blur-md bg-white/25 border border-white/40 shadow-lg rounded-3xl p-5 transition duration-300 hover:scale-102 hover:shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-1.5">Historical Defects (60 Days)</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-slate-900 tracking-tight">{totalHistoricalErrors}</span>
+                    <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">Defects</span>
                   </div>
-                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
-                    Last 60 Days: {totalHistoricalErrors} Total Errors | {concentrationPercentage}% Concentration in {maxDeptName}
-                  </p>
+                </div>
+                
+                <div className="bg-white/50 border border-white/30 rounded-2xl p-2.5 mt-4 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-650 uppercase tracking-wider text-[8.5px]">Average Daily Rate</span>
+                  <span className="font-black text-slate-800 bg-white/95 px-2.5 py-0.5 rounded-lg border border-slate-300/40">{(totalHistoricalErrors / 60).toFixed(1)} / Day</span>
+                </div>
+                
+                <p className="text-[9.5px] text-slate-600 font-bold leading-normal mt-3 border-t pt-2.5 border-slate-200/60">
+                  Last 60 Days: {totalHistoricalErrors} Errors | {concentrationPercentage}% in {maxDeptName}
+                </p>
+              </div>
+
+              {/* Future Projections Card */}
+              <div className="backdrop-blur-md bg-white/25 border border-white/40 shadow-lg rounded-3xl p-5 transition duration-300 hover:scale-102 hover:shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-1.5">Projected Defects (40 Days)</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-slate-900 tracking-tight">~{totalProjectedErrors}</span>
+                    <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">Defects</span>
+                  </div>
                 </div>
 
-                {/* Future Projections Card */}
-                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Projected Defects (40 Days)</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-slate-800">{totalProjectedErrors}</span>
-                    <span className="text-[10px] font-bold text-slate-400">Projected Errors</span>
+                <div className="bg-white/50 border border-white/30 rounded-2xl p-2.5 mt-4 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-650 uppercase tracking-wider text-[8.5px]">Estimated range</span>
+                  <span className="font-black text-slate-800 bg-white/95 px-2.5 py-0.5 rounded-lg border border-slate-300/40">~{totalLowerBound} to {totalUpperBound} errors</span>
+                </div>
+
+                <div className="mt-3 border-t pt-2.5 border-slate-200/60 flex items-center justify-between">
+                  <span className="text-[9.5px] text-slate-600 font-bold">Trend Expectation:</span>
+                  {totalProjectedErrors > (totalHistoricalErrors * 0.5) || totalProjectedErrors > 25 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-rose-500/10 text-rose-700 border border-rose-250/20">
+                      ⚠️ Alert / High Risk
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-emerald-500/10 text-emerald-700 border border-emerald-250/20">
+                      🟢 Stable / Safe
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* ML Engine Status */}
+              <div className="backdrop-blur-md bg-white/25 border border-white/40 shadow-lg rounded-3xl p-5 transition duration-300 hover:scale-102 hover:shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-2">Forecasting Engine Status</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`w-3 h-3 rounded-full ${mlServiceStatus === 'online' ? 'bg-emerald-500 animate-pulse shadow-md shadow-emerald-450/40' : 'bg-amber-500'}`} />
+                    <span className="text-sm font-black uppercase tracking-tight text-slate-900">
+                      {mlServiceStatus === 'online' ? 'AI Prophet Engine' : 'Local Fallback'}
+                    </span>
                   </div>
-                  <div className="mt-2.5 border-t pt-2 border-slate-100 flex items-center justify-between">
-                    <span className="text-[9px] text-slate-450 font-bold">Status:</span>
-                    {totalProjectedErrors > (totalHistoricalErrors * 0.5) || totalProjectedErrors > 25 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-600 border border-rose-100">
-                        🔴 Alert / High Risk
-                      </span>
+                </div>
+
+                <div className="bg-white/50 border border-white/30 rounded-2xl p-2.5 mt-4 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-650 uppercase tracking-wider text-[8.5px]">Precision Level</span>
+                  <span className="font-black text-slate-800 bg-white/95 px-2.5 py-0.5 rounded-lg border border-slate-300/40 uppercase text-[9px]">
+                    {mlServiceStatus === 'online' ? 'High Accuracy' : 'Standard Linear'}
+                  </span>
+                </div>
+
+                <p className="text-[9.5px] text-slate-600 font-bold leading-normal mt-3 border-t pt-2.5 border-slate-200/60">
+                  {mlServiceStatus === 'online' 
+                    ? "AI Prophet modeling activated, forecasting based on historical weekly patterns." 
+                    : "Operating on linear extrapolation using the past 30-day velocity vectors."}
+                </p>
+              </div>
+
+              {/* Smart Recommendation Card */}
+              <div className="backdrop-blur-md bg-white/25 border border-amber-250/40 shadow-lg rounded-3xl p-5 transition duration-300 hover:scale-102 hover:shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest block mb-1.5 flex items-center gap-1">
+                    <Zap size={12} className="text-amber-500 animate-pulse" /> AI Action Plan
+                  </span>
+                  <p className="text-[11px] text-slate-700 font-bold leading-normal">
+                    {rec.recommendation}
+                  </p>
+                </div>
+                <p className="text-[9.5px] text-amber-800 font-black leading-normal mt-3 border-t pt-2.5 border-amber-200/30">
+                  Target: Reduce {maxDeptName} Defects
+                </p>
+              </div>
+
+            </div>
+
+            {/* ROW 2: Live Factory Floor Heatmap & Risk Matrices (2 Columns: 2/3 and 1/3) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+              
+              {/* Left Container (2/3): Heatmap Blueprint */}
+              <div className="lg:col-span-2 bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4">
+                <div className="mb-2">
+                  <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-2">
+                    <Layers className="text-indigo-600" size={16} />
+                    Live Factory Floor Heatmap Blueprint
+                  </h2>
+                  <p className="text-[10px] text-slate-700 font-bold uppercase tracking-wider mt-0.5">
+                    Overhead blueprint layout displaying operational risk zones and real-time department health scores
+                  </p>
+                </div>
+                
+                {/* Overhead Map Grid */}
+                <div className="w-full relative aspect-[800/600] max-h-[520px] border border-slate-300 rounded-[2.5rem] bg-[#EFF2F5] overflow-visible p-0">
+                  {/* SVG Blueprint Layer */}
+                  <svg viewBox="0 0 800 600" className="absolute inset-0 w-full h-full pointer-events-none z-10 text-slate-455 select-none">
+                    {/* Outer perimeter double walls */}
+                    <rect x="10" y="10" width="780" height="580" stroke="#334155" strokeWidth="2.5" fill="none" />
+                    <rect x="14" y="14" width="772" height="572" stroke="#334155" strokeWidth="1" fill="none" strokeDasharray="6 3" />
+
+                    {/* Technical Axis Gridlines */}
+                    <line x1="210" y1="10" x2="210" y2="590" stroke="#94A3B8" strokeWidth="0.6" strokeDasharray="4 4" />
+                    <line x1="590" y1="10" x2="590" y2="590" stroke="#94A3B8" strokeWidth="0.6" strokeDasharray="4 4" />
+                    
+                    <line x1="10" y1="210" x2="790" y2="210" stroke="#94A3B8" strokeWidth="0.6" strokeDasharray="4 4" />
+                    <line x1="10" y1="390" x2="790" y2="390" stroke="#94A3B8" strokeWidth="0.6" strokeDasharray="4 4" />
+
+                    {/* Room Wall Dividers (Asymmetric Industrial Floor Plan Layout) */}
+                    <line x1="14" y1="310" x2="210" y2="310" stroke="#334155" strokeWidth="3" />
+                    <line x1="210" y1="210" x2="590" y2="210" stroke="#334155" strokeWidth="3" />
+                    <line x1="410" y1="14" x2="410" y2="210" stroke="#334155" strokeWidth="3" />
+                    <line x1="210" y1="450" x2="590" y2="450" stroke="#334155" strokeWidth="3" />
+                    <line x1="390" y1="450" x2="390" y2="586" stroke="#334155" strokeWidth="3" />
+                    <line x1="590" y1="200" x2="786" y2="200" stroke="#334155" strokeWidth="3" />
+                    <line x1="590" y1="390" x2="786" y2="390" stroke="#334155" strokeWidth="3" />
+
+                    {/* Structural Steel Columns */}
+                    <rect x="206" y="206" width="8" height="8" fill="#334155" />
+                    <rect x="206" y="306" width="8" height="8" fill="#334155" />
+                    <rect x="206" y="446" width="8" height="8" fill="#334155" />
+                    <rect x="586" y="196" width="8" height="8" fill="#334155" />
+                    <rect x="586" y="386" width="8" height="8" fill="#334155" />
+                    <rect x="586" y="446" width="8" height="8" fill="#334155" />
+
+                    {/* Cargo Loading Bay Gates */}
+                    <line x1="10" y1="80" x2="10" y2="150" stroke="#475569" strokeWidth="4.5" />
+                    <text x="22" y="120" fontSize="7.5" fill="#475569" fontWeight="black" fontFamily="monospace">INBOUND DOCK 01</text>
+                    <line x1="10" y1="380" x2="10" y2="450" stroke="#475569" strokeWidth="4.5" />
+                    <text x="22" y="420" fontSize="7.5" fill="#475569" fontWeight="black" fontFamily="monospace">INBOUND DOCK 02</text>
+                    <line x1="790" y1="440" x2="790" y2="510" stroke="#475569" strokeWidth="4.5" />
+                    <text x="778" y="480" fontSize="7.5" fill="#475569" fontWeight="black" fontFamily="monospace" textAnchor="end">OUTBOUND DOCK 03</text>
+
+                    {/* Door Swing Blueprint Arcs */}
+                    <path d="M 210 110 A 25 25 0 0 1 235 85" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="210" y1="110" x2="210" y2="85" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 210 380 A 25 25 0 0 1 235 355" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="210" y1="380" x2="210" y2="355" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 410 110 A 25 25 0 0 1 435 85" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="410" y1="110" x2="410" y2="85" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 480 210 A 25 25 0 0 0 505 185" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="480" y1="210" x2="505" y2="210" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 590 300 A 25 25 0 0 1 615 275" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="590" y1="300" x2="590" y2="275" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 390 520 A 25 25 0 0 1 415 495" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="390" y1="520" x2="390" y2="495" stroke="#334155" strokeWidth="2.5" />
+                    <path d="M 690 390 A 25 25 0 0 1 715 365" stroke="#475569" strokeWidth="1.2" fill="none" />
+                    <line x1="690" y1="390" x2="715" y2="390" stroke="#334155" strokeWidth="2.5" />
+
+                    {/* Internal Blueprint Details & Equipment Symbols */}
+                    <rect x="40" y="40" width="30" height="100" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                    <rect x="40" y="160" width="30" height="100" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                    <line x1="40" y1="80" x2="70" y2="80" stroke="#64748B" strokeWidth="0.6" />
+                    <line x1="40" y1="200" x2="70" y2="200" stroke="#64748B" strokeWidth="0.6" />
+                    <rect x="120" y="340" width="60" height="30" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                    <rect x="120" y="400" width="60" height="30" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                    <rect x="120" y="460" width="60" height="30" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="2 2" />
+                    <rect x="235" y="40" width="40" height="30" stroke="#64748B" strokeWidth="1.2" fill="none" />
+                    <circle cx="255" cy="55" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="330" y="40" width="50" height="40" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <line x1="330" y1="60" x2="380" y2="60" stroke="#64748B" strokeWidth="0.8" />
+                    <text x="500" y="50" fontSize="8" fill="#475569" fontWeight="black" textAnchor="middle" fontFamily="monospace">CLEAN CORRIDOR</text>
+                    <text x="500" y="62" fontSize="6.5" fill="#64748B" fontWeight="bold" textAnchor="middle" fontFamily="monospace">ISO CLASS 7 / 10,000</text>
+                    <circle cx="480" cy="130" r="12" stroke="#64748B" strokeWidth="0.8" fill="none" strokeDasharray="2 2" />
+                    <circle cx="520" cy="130" r="12" stroke="#64748B" strokeWidth="0.8" fill="none" strokeDasharray="2 2" />
+                    <text x="500" y="152" fontSize="6.5" fill="#64748B" fontWeight="bold" textAnchor="middle" fontFamily="monospace">AIR SHOWER</text>
+                    <rect x="235" y="235" width="45" height="30" rx="2" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <text x="257" y="253" fontSize="7.5" fill="#64748B" fontWeight="bold" textAnchor="middle" fontFamily="monospace">CNC-1</text>
+                    <rect x="320" y="235" width="45" height="30" rx="2" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <text x="342" y="253" fontSize="7.5" fill="#64748B" fontWeight="bold" textAnchor="middle" fontFamily="monospace">CNC-2</text>
+                    <rect x="235" y="340" width="320" height="20" rx="3" stroke="#475569" strokeWidth="1.5" fill="none" />
+                    <circle cx="260" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="310" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="360" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="410" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="460" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="510" cy="350" r="5" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="280" cy="320" r="4" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="420" cy="320" r="4" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="280" cy="510" r="14" stroke="#64748B" strokeWidth="1.2" fill="none" />
+                    <path d="M 280 450 L 280 496" stroke="#64748B" strokeWidth="1.5" fill="none" />
+                    <rect x="420" y="480" width="60" height="60" stroke="#64748B" strokeWidth="1.2" fill="none" strokeDasharray="3 3" />
+                    <path d="M 450 490 L 440 510 L 450 510 L 440 530" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <rect x="500" y="475" width="70" height="35" stroke="#64748B" strokeWidth="1.2" fill="none" />
+                    <circle cx="518" cy="492" r="10" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <circle cx="552" cy="492" r="10" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="630" y="40" width="35" height="35" stroke="#64748B" strokeWidth="1.2" fill="none" />
+                    <circle cx="647" cy="57" r="8" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <path d="M 647 40 L 647 49" stroke="#64748B" strokeWidth="0.8" />
+                    <rect x="630" y="100" width="130" height="80" rx="3" stroke="#64748B" strokeWidth="1" fill="none" strokeDasharray="1 3" />
+                    <text x="695" y="145" fontSize="8" fill="#475569" fontWeight="black" textAnchor="middle" fontFamily="monospace">POST PACKING STORAGE</text>
+                    <rect x="630" y="240" width="50" height="40" rx="2" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <rect x="700" y="240" width="50" height="40" rx="2" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <path d="M 630 350 H 760" stroke="#475569" strokeWidth="1.5" strokeDasharray="4 2" />
+                    <rect x="630" y="430" width="130" height="80" rx="4" stroke="#64748B" strokeWidth="1" fill="none" />
+                    <text x="695" y="475" fontSize="8" fill="#475569" fontWeight="black" textAnchor="middle" fontFamily="monospace">FINISHED SHIPPING BAY</text>
+                    <rect x="625" y="530" width="15" height="15" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="650" y="530" width="15" height="15" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="675" y="530" width="15" height="15" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="700" y="530" width="15" height="15" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <rect x="725" y="530" width="15" height="15" stroke="#64748B" strokeWidth="0.8" fill="none" />
+                    <text x="85" y="195" fontSize="8.5" fontFamily="monospace" fill="#475569" fontWeight="bold">OCCUPANCY S-1</text>
+                    <text x="350" y="200" fontSize="8.5" fontFamily="monospace" fill="#475569" fontWeight="bold">OCCUPANCY F-1</text>
+                    <text x="608" y="320" fontSize="7.5" fontFamily="monospace" fill="#475569" fontWeight="bold" transform="rotate(-90 608 320)">OCCUPANCY F-1*</text>
+                  </svg>
+
+                  {/* Heatmap Zones Overlays */}
+                  {[
+                    // Left column
+                    { key: 'rmw', label: 'RAW MATERIAL\nWAREHOUSE', style: { left: '1.5%', top: '1.8%', width: '25%', height: '50%' } },
+                    { key: 'pmw', label: 'PACKING MATERIAL\nWAREHOUSE', style: { left: '1.5%', top: '51.8%', width: '25%', height: '46.5%' } },
+                    
+                    // Center column
+                    { key: 'qcmad', label: 'QC & MICROBIOLOGY\n& AD LAB', style: { left: '26.5%', top: '1.8%', width: '25%', height: '33.5%' } },
+                    { key: 'pro', label: 'PRODUCTION', style: { left: '26.5%', top: '35%', width: '47.5%', height: '40%' } },
+                    { key: 'ppp', label: 'PRIMARY PACKING\nPRODUCTION', style: { left: '26.5%', top: '75%', width: '22.5%', height: '23.2%' } },
+                    { key: 'fac', label: 'FACILITIES', style: { left: '49%', top: '75%', width: '25%', height: '23.2%' } },
+                    
+                    // Right column
+                    { key: 'pop', label: 'POST PRODUCTION', style: { left: '74%', top: '1.8%', width: '24.5%', height: '31.5%' } },
+                    { key: 'spp', label: 'SECONDARY PACKING\nPRODUCTION', style: { left: '74%', top: '33.5%', width: '24.5%', height: '31.5%' } },
+                    { key: 'fgmw', label: 'FINISHED GOOD\nMATERIAL WAREHOUSE', style: { left: '74%', top: '65%', width: '24.5%', height: '33.2%' } }
+                  ].map((zone) => {
+                    const { score, glowColor, stats } = getZoneHealthScoreAndColor(zone.key);
+                    const zoneDeptName = {
+                      rmw: 'Raw Material Warehouse',
+                      qcmad: 'QC & Microbiology & AD Lab',
+                      pop: 'Post Production',
+                      pmw: 'Packing Material Warehouse',
+                      pro: 'Production',
+                      spp: 'Secondary Packing Production',
+                      fac: 'Facilities',
+                      ppp: 'Primary Packing Production',
+                      fgmw: 'Finished Good Material Warehouse'
+                    }[zone.key];
+                    
+                    const isAnyDeptSelected = selectedDept !== 'Overall';
+                    const isSelected = isAnyDeptSelected && selectedDept === zoneDeptName;
+                    const isUnselected = isAnyDeptSelected && selectedDept !== zoneDeptName;
+
+                    return (
+                      <div 
+                        key={zone.key}
+                        style={zone.style}
+                        className={`absolute cursor-help group transition-all duration-500 hover:z-50 ${
+                          isSelected 
+                            ? 'scale-105 z-30 opacity-100 ring-4 ring-indigo-600/80 shadow-2xl rounded-2xl bg-white/10' 
+                            : isUnselected 
+                              ? 'opacity-25 blur-[1px] pointer-events-none z-10' 
+                              : 'opacity-100 z-20'
+                        }`}
+                      >
+                        {/* Gradient Heat Glow */}
+                        <div 
+                          style={{
+                            background: `radial-gradient(circle, ${glowColor} 0%, rgba(239, 242, 245, 0) 75%)`
+                          }}
+                          className="absolute inset-0 transition-all duration-300 group-hover:scale-[1.03] group-hover:opacity-95"
+                        />
+
+                        {/* Room Label */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                          <div className="text-[#0B132B] font-extrabold text-[10px] sm:text-[13px] md:text-[15px] lg:text-[18px] xl:text-[20px] uppercase tracking-wider text-center leading-tight drop-shadow-[0_1.5px_2px_rgba(255,255,255,0.95)] font-sans">
+                            {zone.label.split('\n').map((line, idx) => (
+                              <div key={idx}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tooltip on Hover */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-slate-900/95 text-white p-4 rounded-2xl shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-30 border border-slate-700/60 text-left">
+                          <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">{zone.key.toUpperCase()} Zone Details</span>
+                            <span className="text-[9.5px] font-mono font-bold bg-white/10 px-2 py-0.5 rounded">Score: {score}%</span>
+                          </div>
+                          <div className="text-[10px] space-y-1 font-bold text-slate-300">
+                            <div>Total defects: <span className="text-white font-black">{stats.totalDefects}</span></div>
+                            <div>Primary cause: <span className="text-emerald-400 font-black truncate max-w-[130px] inline-block align-bottom">{stats.primaryErrorType}</span></div>
+                            <div className="grid grid-cols-3 gap-1 mt-2 text-[8px] bg-slate-950/60 p-1.5 rounded-lg text-center border border-slate-800/80 font-black">
+                              <span className="text-rose-400">High: {stats.highSeverityCount}</span>
+                              <span className="text-amber-400 font-medium">Med: {stats.mediumSeverityCount}</span>
+                              <span className="text-emerald-400">Low: {stats.lowSeverityCount}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Horizontal Operational Health color legend */}
+                <div className="bg-white border border-slate-200/80 p-4 rounded-[2rem] shadow-xs select-none">
+                  <div className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-2 font-mono">
+                    OPERATIONAL HEALTH
+                  </div>
+                  
+                  {/* Segmented bar */}
+                  <div className="grid grid-cols-5 h-7 border border-slate-300 overflow-hidden rounded-lg">
+                    <div className="bg-[#B91C1C] h-full" />
+                    <div className="bg-[#D97706] h-full" />
+                    <div className="bg-[#047857] h-full" />
+                    <div className="bg-[#0891B2] h-full" />
+                    <div className="bg-[#1D4ED8] h-full" />
+                  </div>
+                  
+                  {/* Labels matching exactly */}
+                  <div className="grid grid-cols-5 text-[8.5px] font-black uppercase text-slate-700 tracking-wider text-center mt-2 font-mono leading-normal">
+                    <div>HIGH ERROR</div>
+                    <div>MODERATE ERROR</div>
+                    <div>LOW ERROR</div>
+                    <div>OPTIMAL</div>
+                    <div className="px-1 text-[7.5px] leading-tight">
+                      EXTREMELY LOW ERROR RATE<br />/ HIGH SUCCESS (Optimal)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Container (1/3): Station Risks & Reliability */}
+              <div className="lg:col-span-1 flex flex-col gap-6">
+                
+                {/* Info explanatory element */}
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/60 rounded-[2rem] p-5 shadow-xs flex flex-col gap-3">
+                  <div className="flex items-center gap-1 text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                    <Gauge size={14} className="text-slate-500" /> Model Reliability Index
+                  </div>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold text-slate-600">Sample Count (Days)</span>
+                    <span className="font-black text-slate-800 text-xs">91 Days actual</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold text-slate-600">Prediction Scope</span>
+                    <span className="font-black text-emerald-600 text-xs">10 Days projected</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-600">Reliability Grade</span>
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold text-[9px] rounded-lg border border-emerald-200/40 uppercase">
+                      High Accuracy
+                    </span>
+                  </div>
+                </div>
+
+                {/* Risk Warnings Board */}
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4">
+                  <div>
+                    <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider flex items-center gap-1.5">
+                      <ShieldAlert className="text-rose-600" size={17} /> 
+                      Stations Risk Matrix
+                    </h2>
+                    <p className="text-[10px] text-slate-700 font-bold uppercase tracking-wider">Defect density rank & mitigation recommendations</p>
+                  </div>
+
+                  {/* Stations listing */}
+                  <div className="flex flex-col gap-3 overflow-y-auto max-h-[340px] pr-1">
+                    {stations.length === 0 ? (
+                      <p className="text-xs text-slate-600 font-bold italic py-4">No active risk metrics reported for this filter context.</p>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        🟢 Stable / Safe
-                      </span>
+                      stations.map((item) => (
+                        <div 
+                          key={item.stationId} 
+                          onClick={() => setSelectedStation(item)}
+                          className="p-3.5 bg-white/70 border border-slate-150/80 rounded-2xl flex flex-col gap-2 relative hover:border-emerald-250 hover:bg-emerald-50/20 transition-all duration-300 cursor-pointer shadow-xs active:scale-98 text-left"
+                          title={
+                            item.riskLevel === 'Critical' 
+                              ? "Critical rating is triggered because high frequency of critical/high-severity defects logged on this line."
+                              : item.riskLevel === 'High' 
+                                ? "High rating is triggered due to cumulative defect logs exceeding 15 or high severity counts exceeding 3." 
+                                : "Station reports nominal variations within standard quality limits."
+                          }
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-black text-slate-800 uppercase">{item.stationId}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border cursor-help ${
+                              item.riskLevel === 'Critical' ? 'bg-rose-50 text-rose-600 border-rose-150' :
+                              item.riskLevel === 'High' ? 'bg-amber-50 text-amber-600 border-amber-150' :
+                              'bg-slate-50 text-slate-550 border-slate-200'
+                            }`}>
+                              {item.riskLevel}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 font-bold">
+                            <div>Total Defects: <span className="text-slate-850 font-black">{item.totalDefects}</span></div>
+                            <div className="text-right">Primary: <span className="text-emerald-600 font-black truncate max-w-[80px] inline-block align-bottom">{item.primaryErrorType}</span></div>
+                          </div>
+
+                          <div className="hidden group-hover:block text-[9px] text-slate-600 bg-white border border-emerald-100/50 p-2 rounded-xl mt-1.5 leading-normal animate-scale-up font-medium">
+                            <span className="font-extrabold text-[8px] uppercase tracking-widest text-emerald-655 block mb-0.5">Recommended Action:</span>
+                            {item.riskLevel === 'Critical' ? (
+                              "⚠️ CRITICAL ACTION: Schedule mandatory machine calibration within the next 24 hours. Hold secondary audits."
+                            ) : item.riskLevel === 'High' ? (
+                              "🔍 HIGH ACTION: Increase inspection frequency on primary packaging lines. Retrain operators."
+                            ) : (
+                              "✅ ROUTINE ACTION: Maintain standard quality checks and shift logging cycles."
+                            )}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
 
-                {/* ML Engine Status */}
-                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-3xl p-5 shadow-xs transition duration-300">
-                  <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block mb-1">Forecasting Engine</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${mlServiceStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                    <span className="text-xs font-black uppercase tracking-tight text-slate-700">
-                      {mlServiceStatus === 'online' ? 'AI Prophet Active' : 'Statistical Fallback'}
-                    </span>
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-bold leading-normal mt-2.5 border-t pt-2 border-slate-100">
-                    {mlServiceStatus === 'online' 
-                      ? "Using advanced Prophet Time-Series AI model to forecast future data points." 
-                      : "Operating on local fallback mathematical model using current trend velocities."}
-                  </p>
-                </div>
-
               </div>
 
-              {/* Dedicated Smart Recommendation Card (Rule 2) */}
-              <div className="bg-white/85 backdrop-blur-md border border-amber-200/70 rounded-3xl p-6 shadow-xs flex flex-col gap-4 animate-in fade-in duration-500">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center">
-                    <AlertTriangle size={18} />
-                  </div>
-                  <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Smart Recommendation</h4>
-                </div>
-                <div className="border-t border-slate-150 pt-3">
-                  <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                    {rec.causeEffect}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-xl px-4 py-2.5">
-                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider shrink-0">Action Plan:</span>
-                    <span className="text-[10px] text-amber-700 font-black">{rec.recommendation}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chart Panel */}
-              <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs">
-                <div className="mb-6 flex justify-between items-start">
-                  <div>
-                    <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider">Historical vs Forecast Defect Timeline</h2>
-                    <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">60 days observed actuals + 40 days machine learning projections</p>
-                  </div>
-                  <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-emerald-500 inline-block" /> Actual Defects
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-purple-500 border-t border-dashed border-purple-500 inline-block" /> Projected Forecast
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 bg-purple-100 border border-purple-200 rounded inline-block" /> 95% Confidence Bounds
-                    </div>
-                  </div>
-                </div>
-
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.18}/>
-                          <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.01}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                      <XAxis 
-                        dataKey="date" 
-                        stroke="#64748B" 
-                        fontSize={9}
-                        fontWeight="bold"
-                        tickLine={false}
-                        axisLine={false}
-                        dy={8}
-                        tickFormatter={(str) => {
-                          if (!str) return '';
-                          const parts = str.split('-');
-                          if (parts.length < 3) return str;
-                          return `${parts[2]}/${parts[1]}`;
-                        }}
-                      />
-                      <YAxis 
-                        stroke="#64748B" 
-                        fontSize={9}
-                        fontWeight="bold"
-                        tickLine={false}
-                        axisLine={false}
-                        dx={-8}
-                      />
-                      <Tooltip content={<CustomChartTooltip />} />
-                      
-                      {/* Confidence boundary band */}
-                      <Area
-                        type="monotone"
-                        dataKey={(point) => point.isForecast ? [point.lowerBound, point.upperBound] : null}
-                        stroke="none"
-                        fill="url(#confidenceBand)"
-                        name="Confidence Interval"
-                      />
-
-                      {/* Actual Defects Line */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="actual" 
-                        stroke="#10B981" 
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 5, stroke: '#10B981', strokeWidth: 2, fill: '#FFFFFF' }}
-                        connectNulls
-                      />
-
-                      {/* Predicted Defects Line */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="predicted" 
-                        stroke="#8B5CF6" 
-                        strokeWidth={3}
-                        strokeDasharray="5 5"
-                        dot={{ r: 3.5, fill: '#8B5CF6', strokeWidth: 1, stroke: '#FFFFFF' }}
-                        activeDot={{ r: 6.5, stroke: '#8B5CF6', strokeWidth: 2, fill: '#FFFFFF' }}
-                        connectNulls
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
             </div>
 
-            {/* RIGHT COLUMN: Risks Breakdown Matrix */}
-            <div className="flex flex-col gap-6">
+            {/* ROW 3: Deep Analytics Charts (2 Columns: 2/3 and 1/3) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* Info explanatory element */}
-              <div className="bg-white/85 backdrop-blur-md border border-slate-200/60 rounded-[2rem] p-5 shadow-xs flex flex-col gap-3">
-                <div className="flex items-center gap-1 text-[10px] font-black text-slate-450 uppercase tracking-widest">
-                  <Gauge size={14} className="text-slate-500" /> Model Reliability Index
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <span className="text-xs font-bold text-slate-550">Sample Count (Days)</span>
-                  <span className="font-black text-slate-800 text-xs">91 Days actual</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <span className="text-xs font-bold text-slate-550">Prediction Scope</span>
-                  <span className="font-black text-emerald-600 text-xs">10 Days projected</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-550">Reliability Grade</span>
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold text-[9px] rounded-lg border border-emerald-200/40 uppercase">
-                    95% Confidence
-                  </span>
+              {/* Left Container (2/3): Stacked Bar Chart */}
+              <div className="lg:col-span-2">
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4">
+                  <div className="mb-2">
+                    <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider">Defect Trend & Error Distribution</h2>
+                    <p className="text-[10px] text-slate-700 font-bold uppercase tracking-wider">60-day historical observations broken down by error classification</p>
+                  </div>
+
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={processedHistoricalData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#64748B" 
+                          fontSize={9}
+                          fontWeight="bold"
+                          tickLine={false}
+                          axisLine={false}
+                          dy={8}
+                        />
+                        <YAxis 
+                          stroke="#64748B" 
+                          fontSize={9}
+                          fontWeight="bold"
+                          tickLine={false}
+                          axisLine={false}
+                          dx={-8}
+                        />
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const point = payload[0].payload;
+                              return (
+                                <div className="bg-[#0F172A] border border-slate-800 text-white p-3.5 rounded-2xl shadow-xl text-[10px] font-bold leading-normal text-left">
+                                  <p className="font-extrabold uppercase text-[7.5px] tracking-widest text-slate-400 mb-1">{point.fullName}</p>
+                                  <div className="space-y-1.5 border-t border-slate-800 pt-1.5 mt-1">
+                                    {payload.map((p, i) => (
+                                      <div key={i} className="flex justify-between items-center gap-4">
+                                        <span className="text-slate-400 font-semibold">{p.name}:</span>
+                                        <span style={{ color: p.color }} className="font-black">{p.value} Errors</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Legend 
+                          verticalAlign="top" 
+                          height={36} 
+                          iconType="circle" 
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        />
+                        <Bar dataKey="downtime" name="Machine & Power Downtime" stackId="a" fill="#F43F5E" />
+                        <Bar dataKey="manpower" name="Manpower Shortage" stackId="a" fill="#F59E0B" />
+                        <Bar dataKey="reject" name="Quality Reject" stackId="a" fill="#3B82F6" />
+                        <Bar dataKey="safety" name="Safety Incident" stackId="a" fill="#EF4444" />
+                        <Bar dataKey="health" name="Health & Attendance" stackId="a" fill="#8B5CF6" />
+                        <Bar dataKey="other" name="Other issues" stackId="a" fill="#94A3B8" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
-              {/* Risk Warnings Board */}
-              <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4 flex-1">
-                <div>
-                  <h2 className="text-sm font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
-                    <ShieldAlert className="text-rose-600" size={17} /> 
-                    Stations Risk Matrix
-                  </h2>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Defect density rank & mitigation recommendations</p>
-                </div>
+              {/* Right Container (1/3): Line Chart */}
+              <div className="lg:col-span-1">
+                <div className="bg-white/85 backdrop-blur-md border border-slate-200/80 rounded-[2.5rem] p-6 shadow-xs flex flex-col gap-4">
+                  <div className="mb-2 flex justify-between items-start">
+                    <div>
+                      <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider">40-Day Projection</h2>
+                      <p className="text-[10px] text-slate-700 font-bold uppercase tracking-wider">Defect count forecast and expected range</p>
+                    </div>
+                  </div>
 
-                {/* Stations listing */}
-                <div className="flex flex-col gap-3 overflow-y-auto max-h-[360px] pr-1">
-                  {stations.length === 0 ? (
-                    <p className="text-xs text-slate-400 font-bold italic py-4">No active risk metrics reported for this filter context.</p>
-                  ) : (
-                    stations.map((item) => (
-                      <div 
-                        key={item.stationId} 
-                        onClick={() => setSelectedStation(item)}
-                        className="p-3.5 bg-white/70 border border-slate-150/80 rounded-2xl flex flex-col gap-2 relative hover:border-emerald-250 hover:bg-emerald-50/20 transition-all duration-300 cursor-pointer shadow-xs active:scale-98"
-                        title={
-                          item.riskLevel === 'Critical' 
-                            ? "Critical rating is triggered because high frequency of critical/high-severity defects logged on this line."
-                            : item.riskLevel === 'High' 
-                              ? "High rating is triggered due to cumulative defect logs exceeding 15 or high severity counts exceeding 3." 
-                              : "Station reports nominal variations within standard quality limits."
-                        }
-                      >
-                        {/* Station Name + Severity Badge with Native Tooltip */}
-                        <div className="flex justify-between items-center">
-                          <span className="font-black text-slate-800 uppercase">{item.stationId}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border cursor-help ${
-                            item.riskLevel === 'Critical' ? 'bg-rose-50 text-rose-600 border-rose-150' :
-                            item.riskLevel === 'High' ? 'bg-amber-50 text-amber-600 border-amber-150' :
-                            'bg-slate-50 text-slate-550 border-slate-200'
-                          }`}>
-                            {item.riskLevel}
-                          </span>
-                        </div>
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={forecastDataWithRates} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.02}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="#64748B" 
+                          fontSize={9}
+                          fontWeight="bold"
+                          tickLine={false}
+                          axisLine={false}
+                          dy={8}
+                          tickFormatter={(str) => {
+                            if (!str) return '';
+                            const parts = str.split('-');
+                            if (parts.length < 3) return str;
+                            return `${parts[2]}/${parts[1]}`;
+                          }}
+                        />
+                        <YAxis 
+                          stroke="#64748B" 
+                          fontSize={9}
+                          fontWeight="bold"
+                          tickLine={false}
+                          axisLine={false}
+                          dx={-8}
+                        />
+                        <Tooltip content={<CustomProjectionTooltip />} />
+                        
+                        <Area
+                          type="monotone"
+                          dataKey={(point) => [point.lowerBound, point.upperBound]}
+                          stroke="none"
+                          fill="url(#confidenceBand)"
+                          name="Confidence Interval"
+                        />
 
-                        {/* Defect count details */}
-                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-bold">
-                          <div>Total Defects: <span className="text-slate-800 font-black">{item.totalDefects}</span></div>
-                          <div className="text-right">Primary: <span className="text-emerald-600 font-black truncate max-w-[80px] inline-block align-bottom">{item.primaryErrorType}</span></div>
-                        </div>
-
-                        {/* Mitigation recommendation text */}
-                        <div className="hidden group-hover:block text-[9px] text-slate-600 bg-white border border-emerald-100/50 p-2 rounded-xl mt-1.5 leading-normal animate-scale-up font-medium">
-                          <span className="font-extrabold text-[8px] uppercase tracking-widest text-emerald-655 block mb-0.5">Recommended Action:</span>
-                          {item.riskLevel === 'Critical' ? (
-                            "⚠️ CRITICAL ACTION: Schedule mandatory machine calibration within the next 24 hours. Hold secondary audits."
-                          ) : item.riskLevel === 'High' ? (
-                            "🔍 HIGH ACTION: Increase inspection frequency on primary packaging lines. Retrain operators."
-                          ) : (
-                            "✅ ROUTINE ACTION: Maintain standard quality checks and shift logging cycles."
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
+                        <Line 
+                          type="monotone" 
+                          dataKey="predicted" 
+                          name="Projected Defects"
+                          stroke="#8B5CF6" 
+                          strokeWidth={3}
+                          dot={{ r: 3, fill: '#8B5CF6', strokeWidth: 1, stroke: '#FFFFFF' }}
+                          activeDot={{ r: 5, stroke: '#8B5CF6', strokeWidth: 2, fill: '#FFFFFF' }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
+
             </div>
 
           </div>

@@ -1,7 +1,7 @@
-const TimeLock        = require('../models/TimeLock');
-const AuditLog        = require('../models/AuditLog');
+const TimeLock = require('../models/TimeLock');
+const AuditLog = require('../models/AuditLog');
 const HodNotification = require('../models/HodNotification');
-const User            = require('../models/User');
+const User = require('../models/User');
 
 const MODULE_NAMES = { Q: 'Quality', D: 'Delivery', S: 'Safety', H: 'Health' };
 
@@ -70,7 +70,7 @@ const notifyHod = async ({ empId, empName, dept, shift, module, deptType, date }
     const hod = await User.findOne({ role: 'hod', department: { $regex: deptRegex } });
     if (!hod) return;
 
-    const ist     = nowIST();
+    const ist = nowIST();
     const dateStr = date || formatISTDate(ist);
     const timeStr = formatISTTime(ist);
     const modName = module ? `${module} — ${MODULE_NAMES[module] || module}` : 'Update';
@@ -85,16 +85,16 @@ const notifyHod = async ({ empId, empName, dept, shift, module, deptType, date }
     ].join(' | ');
 
     await HodNotification.create({
-      hodDept:   dept,
+      hodDept: dept,
       empId,
       empName,
       dept,
       shift,
-      module:    module    || null,
-      deptType:  deptType  || 'qdsh',
-      message:   msg,
+      module: module || null,
+      deptType: deptType || 'qdsh',
+      message: msg,
       timestamp: new Date(),
-      read:      false,
+      read: false,
     });
   } catch (err) {
     console.error('HodNotification error:', err.message);
@@ -102,4 +102,3 @@ const notifyHod = async ({ empId, empName, dept, shift, module, deptType, date }
 };
 
 module.exports = { checkTimeLock, createAuditLog, notifyHod, nowIST, formatISTTime, formatISTDate };
- 

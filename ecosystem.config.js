@@ -29,8 +29,8 @@ module.exports = {
     },
     {
       name: 'qdshi-ml-service',
-      script: 'python',
-      args: 'main.py',
+      script: 'main.py',
+      interpreter: 'python',
       cwd: './ml-service',
       instances: 1,
       exec_mode: 'fork',
