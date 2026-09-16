@@ -6,7 +6,13 @@ import {
 import axios from 'axios';
 
 // Backend API root config
-const API_URL = 'http://localhost:8000';
+const API_URL = (window.location.port && window.location.port !== '8000')
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : window.location.origin;
+
+const EXPRESS_API = (window.location.port && window.location.port !== '5000')
+  ? `${window.location.protocol}//${window.location.hostname}:5000`
+  : 'http://localhost:5000';
 
 const RichTextEmailModal = ({ hod, onClose, departmentSummary }) => {
   const [subject, setSubject] = useState('');
@@ -93,21 +99,33 @@ const RichTextEmailModal = ({ hod, onClose, departmentSummary }) => {
     const emailBody = editorRef.current.innerHTML;
 
     try {
-      const response = await axios.post(`${API_URL}/api/v1/admin/send-mail`, {
-        recipient_email: hod.hod_email,
-        subject: subject,
-        body: emailBody
-      });
+      let response;
+      try {
+        response = await axios.post(`${API_URL}/api/v1/admin/send-mail`, {
+          recipient_email: hod.hod_email,
+          subject: subject,
+          body: emailBody
+        });
+      } catch (err) {
+        console.warn('FastAPI send-mail failed, falling back to Express port 5000...');
+        response = await axios.post(`${EXPRESS_API}/api/admin/send-mail`, {
+          recipient_email: hod.hod_email,
+          subject: subject,
+          body: emailBody
+        });
+      }
       
       if (response.data.status === 'success') {
         setSuccess(true);
         setTimeout(() => {
           onClose(true); // Notify parent sending was completed
         }, 1500);
+      } else {
+        setError(response.data.message || 'Mail transmission failed.');
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || 'SMTP pipeline encountered a socket timeout. Verify backend SMTP credentials.');
+      setError(err.response?.data?.error || err.response?.data?.detail || 'SMTP pipeline encountered a socket timeout. Verify backend SMTP credentials.');
     } finally {
       setSending(false);
     }

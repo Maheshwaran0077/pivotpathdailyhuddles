@@ -8,7 +8,10 @@ import ExcelJS from 'exceljs';
 import logo from '../assest/pivotPathLogo.svg';
 import PageLoader from '../components/PageLoader';
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 const FIN_MONTHS = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
 const YEARS = Array.from({ length: 30 }, (_, i) => 2021 + i); // 30 years from 2021 to 2050
 

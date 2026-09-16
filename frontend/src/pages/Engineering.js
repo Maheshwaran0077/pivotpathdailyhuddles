@@ -6,7 +6,10 @@ import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 
 const ENG_ROWS = [
   { category: 'Quality Compliance',             kpiMetric: 'Engineering-Related Deviations (Yesterday)' },

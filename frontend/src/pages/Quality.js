@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import {
   ChevronLeft, ChevronRight, Star, Maximize2,
-  Download, Edit3, X, Activity, Trash2, Clock, User
+  Download, Edit3, X, Activity, Trash2, User
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -13,6 +13,10 @@ import {
 } from 'recharts';
 import CircularTracker from '../components/CircularTracker';
 import { dashboardMetrics as initialData } from '../dashboardData';
+import FDAInvestigationWizard from '../components/FDAInvestigationWizard';
+import AddChallengeModal from '../components/AddChallengeModal';
+import AIResolutionVerificationModal from '../components/AIResolutionVerificationModal';
+import { showDetailedAuditLog } from '../utils/logDetailRenderer';
 // IST timezone helpers
 const getISTDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const getISTTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -30,8 +34,11 @@ const formatLogTime = (log) => {
 };
 
 const MySwal = withReactContent(Swal);
-const API_BASE_URL = `${process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)}/api/metrics`;
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
+const API_BASE_URL = `${API}/api/metrics`;
 const DEPT_FULL = { fgmw: 'Finished Goods Material Warehouse', fg: 'Finished Goods Material Warehouse', pmw: 'Packing Material Warehouse', pm: 'Packing Material Warehouse', rmw: 'Raw Material Warehouse', rm: 'Raw Material Warehouse', qcmad: 'QC & Microbiology Lab', pro: 'Production', pop: 'Post Production', ppp: 'Primary Packing Production', spp: 'Secondary Packing Production', fac: 'Facilities', ehs: 'Environment, Health & Safety', engineering: 'Engineering & Works Management', hr: 'Human Resources' };
 
 const Toast = Swal.mixin({
@@ -71,6 +78,8 @@ export default function QualityPage() {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(initialData);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedChallengeForFda, setSelectedChallengeForFda] = useState(null);
+  const [isFdaWizardOpen, setIsFdaWizardOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState("Target Met");
   const [deviationType, setDeviationType] = useState("");
   const [customReason, setCustomReason] = useState("");
@@ -79,8 +88,46 @@ export default function QualityPage() {
   const [reporterName, setReporterName] = useState("");
   const [reporterId, setReporterId] = useState("");
   const [alertBrief, setAlertBrief] = useState("");
-  const [viewDate, setViewDate] = useState(new Date());
+  const [viewDate, setViewDate] = useState(() => {
+    const storedMonth = localStorage.getItem('selectedMonthIndex');
+    const storedYear = localStorage.getItem('selectedYear');
+    if (storedMonth !== null && storedYear !== null) {
+      const d = new Date();
+      d.setMonth(parseInt(storedMonth, 10));
+      d.setFullYear(parseInt(storedYear, 10));
+      return d;
+    }
+    return new Date();
+  });
+
+  useEffect(() => {
+    localStorage.setItem('selectedMonthIndex', viewDate.getMonth().toString());
+    localStorage.setItem('selectedYear', viewDate.getFullYear().toString());
+  }, [viewDate]);
+
   const [customDate, setCustomDate] = useState(getISTDate);
+
+
+  const [allUsers, setAllUsers] = useState([]);
+  const [isAddChallengeOpen, setIsAddChallengeOpen] = useState(false);
+  const [isActionTrackerMode, setIsActionTrackerMode] = useState(false);
+  const [selectedChallengeForVerification, setSelectedChallengeForVerification] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/api/users/all/employee`).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/api/users/all/supervisor`).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/api/users/all/hod`).then(r => r.ok ? r.json() : [])
+    ]).then(([emps, sups, hods]) => {
+      setAllUsers([...emps, ...sups, ...hods]);
+    }).catch(() => {});
+  }, []);
+
+  const resolveName = (assignedId, fallbackName) => {
+    if (!assignedId) return fallbackName || 'N/A';
+    const foundUser = allUsers.find(u => u.employeeId === assignedId || u._id === assignedId);
+    return foundUser ? foundUser.name : (fallbackName || assignedId);
+  };
 
   const [staffLogs, setStaffLogs] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
@@ -121,38 +168,10 @@ export default function QualityPage() {
   const notifyError = (msg) => Toast.fire({ icon: 'error', title: msg });
 
   const handleShowLogDetails = (log) => {
-    MySwal.fire({
-      title: `<span class="text-sm font-black text-slate-800 uppercase tracking-wider">Complaint Detail</span>`,
-      html: `
-        <div class="text-left space-y-3 text-xs p-2">
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Date & Time:</strong> <span class="font-bold text-slate-700">${log.date || ''} ${log.time || ''}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Issue Type:</strong> <span class="font-bold text-slate-700">${log.issueType || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Reporter:</strong> <span class="font-bold text-slate-700">${log.reporter || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Assigned To:</strong> <span class="font-bold text-slate-700">${log.assignedName || 'N/A'} (ID: ${log.assignedId || 'N/A'})</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Status:</strong> <span class="font-bold ${log.resolved ? 'text-emerald-600' : 'text-rose-600'} uppercase">${log.resolved ? 'Resolved' : 'Pending'}</span></div>
-          <div class="flex justify-between"><strong class="text-slate-500 uppercase">Action Status:</strong> <span class="font-bold text-slate-700">${log.action || 'No action taken yet'}</span></div>
-        </div>
-      `,
-      confirmButtonText: 'CLOSE',
-      confirmButtonColor: '#475569'
-    });
+    showDetailedAuditLog(log);
   };
 
-  const handleShowActionDetails = (log) => {
-    MySwal.fire({
-      title: `<span class="text-sm font-black text-slate-800 uppercase tracking-wider">Action Log Detail</span>`,
-      html: `
-        <div class="text-left space-y-3 text-xs p-2">
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Employee ID:</strong> <span class="font-bold text-slate-700">${log.id || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Description:</strong> <span class="font-bold text-slate-700">${log.name || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Action Taken:</strong> <span class="font-bold text-slate-700">${log.action || 'N/A'}</span></div>
-          <div class="flex justify-between"><strong class="text-slate-500 uppercase">Time:</strong> <span class="font-bold text-slate-700">${log.time || 'N/A'}</span></div>
-        </div>
-      `,
-      confirmButtonText: 'CLOSE',
-      confirmButtonColor: '#475569'
-    });
-  };
+  const handleShowActionDetails = handleShowLogDetails;
 
   const confirmDelete = async (itemType = "record") => {
     return await MySwal.fire({
@@ -255,6 +274,23 @@ export default function QualityPage() {
         setReporterId("");
         setAlertBrief("");
         notifySuccess(`Shift ${shift} Updated`);
+        
+        if (resolvedReason !== "Target Met") {
+          const loggedChallenge = {
+            id: assignedId,
+            name: `${alertBrief} (Reported by: ${reporterName} - ID: ${reporterId})`,
+            action: "",
+            time: getISTTime(),
+            resolved: false,
+            issueType: resolvedReason,
+            reporter: `${reporterName} (${reporterId})`,
+            assignedName: assignedName,
+            assignedId: assignedId,
+            date: `${d}/${m}/${y}`
+          };
+          setSelectedChallengeForFda(loggedChallenge);
+          setIsFdaWizardOpen(true);
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         notifyError(err.error || 'Save failed — check time lock or connection');
@@ -299,24 +335,52 @@ export default function QualityPage() {
     });
   };
 
-  const addRow = (type) => {
-    const newRow = {
-      id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`,
-      name: "",
-      action: "",
-      time: getISTTime(),
-      resolved: false
-    };
-    if (type === 'staff') setStaffLogs(prev => [newRow, ...prev]);
-    else setActivityLogs(prev => [newRow, ...prev]);
-  };
+
 
   const removeRow = async (type, index) => {
+    const targetLogs = type === 'staff' ? staffLogs : activityLogs;
+    const targetItem = targetLogs[index];
+    if (!targetItem) return;
+
     const result = await confirmDelete(type === 'staff' ? "staff log entry" : "activity log entry");
-    if (result.isConfirmed) {
-      if (type === 'staff') setStaffLogs(prev => prev.filter((_, i) => i !== index));
-      else setActivityLogs(prev => prev.filter((_, i) => i !== index));
-      notifySuccess("Row removed");
+    if (!result.isConfirmed) return;
+
+    const userRole = user?.role || 'superadmin';
+    const trackerId = targetItem.trackerId || targetItem.id || targetItem._id;
+    const updatedLogs = targetLogs.filter((_, i) => i !== index);
+
+    try {
+      if (trackerId) {
+        await fetch(`${API}/api/fda/challenges/${trackerId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'user-role': userRole
+          }
+        }).catch(() => {});
+      }
+
+      if (type === 'staff') {
+        setStaffLogs(updatedLogs);
+        await fetch(`${API_BASE_URL}/staff`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ letter: 'Q', shift: shift || '1', dept: dept || 'fgmw', logs: updatedLogs, empId: user?.employeeId, empName: user?.name, userRole })
+        });
+      } else {
+        setActivityLogs(updatedLogs);
+        await fetch(`${API_BASE_URL}/activity`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ letter: 'Q', shift: shift || '1', dept: dept || 'fgmw', logs: updatedLogs, empId: user?.employeeId, empName: user?.name, userRole })
+        });
+      }
+
+      await fetchMetrics(false);
+      notifySuccess("Record permanently deleted from cloud.");
+    } catch (err) {
+      console.error("Delete persistence error:", err);
+      notifyError("Failed to persist deletion to cloud.");
     }
   };
 
@@ -336,7 +400,10 @@ export default function QualityPage() {
 
   const downloadAllShiftsCSV = async () => {
     try {
-      const API_ROOT = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+      const API_ROOT = process.env.REACT_APP_API_URL || 
+        ((window.location.port && window.location.port !== '5000') 
+          ? `${window.location.protocol}//${window.location.hostname}:5000` 
+          : window.location.origin);
       const res = await fetch(`${API_ROOT}/api/metrics?dept=${dept || 'fgmw'}`);
       const allMetrics = await res.json();
       const qMetric = Array.isArray(allMetrics) ? allMetrics.find(m => m.letter === 'Q') : null;
@@ -383,7 +450,7 @@ export default function QualityPage() {
     return { successPercent, totalSuccess, totalAlerts, total };
   }, [metrics, viewDate, viewYear]);
 
-  const fetchMetrics = async (showLoader = true) => {
+  const fetchMetrics = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
       const url = `${API_BASE_URL}?dept=${dept || 'fgmw'}`;
@@ -414,11 +481,11 @@ export default function QualityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dept, shift]);
 
   useEffect(() => {
     fetchMetrics();
-  }, [shift, dept]); // Refetch whenever the shift changes in the URL
+  }, [fetchMetrics]); // Refetch whenever the shift changes in the URL
 
   const daysInViewMonth = useMemo(() => new Date(viewYear, viewDate.getMonth() + 1, 0).getDate(), [viewDate, viewYear]);
 
@@ -488,6 +555,29 @@ export default function QualityPage() {
           <ChevronLeft size={18} /> <span className="hidden sm:inline">Back</span>
         </button>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200 shadow-inner select-none shrink-0">
+            {[
+              { key: 'overall', label: t('navbar.overall') },
+              { key: '1', label: 'S1' },
+              { key: '2', label: 'S2' },
+              { key: '3', label: 'S3' }
+            ].map((item) => {
+              const isActive = (shift || 'overall') === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => navigate(`/shift/${item.key}/${dept || 'fgmw'}/q`)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 ${
+                    isActive 
+                      ? 'bg-emerald-600 text-white shadow-sm scale-105 font-black' 
+                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100/85 font-bold'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
           <button onClick={downloadCSV}
             className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-full font-bold text-xs shadow-sm transition-all">
             <Download size={13} /> <span className="hidden sm:inline">Shiftwise</span>
@@ -672,7 +762,7 @@ export default function QualityPage() {
         <div className="col-span-12 md:col-span-6 lg:col-span-5 flex flex-col gap-5">
           <ChartCard title={`${viewMonthName} ${t('dashboard.distribution', 'DISTRIBUTION')}`}>
             <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <BarChart data={[
                   { name: t('dashboard.alerts', 'Alerts'), value: stats.alerts },
                   { name: t('dashboard.success', 'Success'), value: stats.success },
@@ -692,7 +782,7 @@ export default function QualityPage() {
 
           <ChartCard title={`${viewYear} PERFORMANCE TREND`}>
             <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <LineChart data={annualTrend}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                   <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
@@ -715,13 +805,19 @@ export default function QualityPage() {
             logs={staffLogs}
             isSuperAdmin={isSuperAdmin}
             canUpdate={canUpdate}
-            onAdd={() => addRow('staff')}
+            onAdd={() => { if (!canUpdate) return; setIsActionTrackerMode(false); setIsAddChallengeOpen(true); }}
             onUpdate={handleUpdateStaff}
             onRemove={(i) => removeRow('staff', i)}
             onChange={(i, f, v) => handleLogChange('staff', i, f, v)}
             loading={tableSyncing.staff}
             theme="emerald"
             onShowDetails={handleShowLogDetails}
+            resolveName={resolveName}
+            onOpenVerification={(log) => setSelectedChallengeForVerification(log)}
+            onOpenFda={(log) => {
+              setSelectedChallengeForFda(log);
+              setIsFdaWizardOpen(true);
+            }}
             onToggleResolve={async (index, isResolved) => {
               const confirm = await MySwal.fire({
                 title: 'Are you sure?',
@@ -781,6 +877,111 @@ export default function QualityPage() {
                   body: JSON.stringify({ letter: 'Q', shift: shift || '1', dept: dept || 'fgmw', logs: updatedActivity, empId: user?.employeeId, empName: user?.name, userRole: user?.role })
                 });
                 await fetchMetrics(false);
+
+                // Auto-Watchdog Multi-Recipient Dispatch upon Resolution
+                if (isResolved) {
+                  try {
+                    const currentIssue = staffLogs[index];
+                    
+                    // Fetch HOD, Supervisor, Superadmin, and Assigned Person details
+                    const [hodsRes, supsRes, empsRes] = await Promise.all([
+                      fetch(`${API}/api/users/all/hod`).then(r => r.ok ? r.json() : []),
+                      fetch(`${API}/api/users/all/supervisor`).then(r => r.ok ? r.json() : []),
+                      fetch(`${API}/api/users/all/employee`).then(r => r.ok ? r.json() : [])
+                    ]);
+
+                    const allUsersList = [...hodsRes, ...supsRes, ...empsRes];
+
+                    // HOD email
+                    const deptHod = hodsRes.find(h => h.department === dept);
+                    const hodEmail = deptHod ? (deptHod.gmail || deptHod.email) : '';
+
+                    // Supervisor email
+                    const matchedSup = supsRes.find(s => {
+                      const depts = (s.department || '').split(',').map(d => d.trim().toLowerCase());
+                      const shifts = (s.shift || '').split(',').map(sh => sh.trim());
+                      return depts.includes(dept.toLowerCase()) && shifts.includes(shift);
+                    });
+                    const supEmail = matchedSup ? (matchedSup.gmail || matchedSup.email) : '';
+
+                    // Assigned Person email
+                    const assignedIdRef = currentIssue.assignedId || currentIssue.id;
+                    const assignedUser = allUsersList.find(u => u.employeeId === assignedIdRef || u._id === assignedIdRef);
+                    const assignedEmail = assignedUser ? (assignedUser.gmail || assignedUser.email) : '';
+
+                    // Superadmin email
+                    const superadminUser = allUsersList.find(u => u.role === 'superadmin');
+                    const superadminEmail = superadminUser ? (superadminUser.gmail || superadminUser.email) : 'Maheshadmin@gmail.com';
+
+                    // Build unique recipient list
+                    const recipientList = [hodEmail, supEmail, assignedEmail, superadminEmail]
+                      .map(e => (e || '').trim())
+                      .filter((e, i, self) => e && self.indexOf(e) === i);
+
+                    if (recipientList.length > 0) {
+                      const recipientCsv = recipientList.join(',');
+                      const logId = currentIssue.id || 'N/A';
+                      const defectCategory = currentIssue.issueType || 'Compliance Issue';
+                      const resolutionTime = getISTTime();
+                      const resolutionDate = getISTDate();
+                      const assignedPersonName = assignedUser ? assignedUser.name : (currentIssue.assignedName || currentIssue.name || 'N/A');
+
+                      const mailSubject = `[COMPLIANCE RESOLVED] Quality Log ID: ${logId} | Department: ${dept.toUpperCase()}`;
+                      
+                      const mailBody = `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #10b981; border-radius: 8px; color: #333;">
+                          <h2 style="color: #10b981; margin-top: 0;">✅ COMPLIANCE RESOLVED STATUS DISPATCH</h2>
+                          <p>Dear Stakeholder,</p>
+                          <p>This is an automated background watchdog notification confirming that a quality compliance issue has been successfully resolved.</p>
+                          <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                            <tr style="background-color: #f8fafc;">
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Log Reference ID:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">${logId}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Defect Category:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">${defectCategory}</td>
+                            </tr>
+                            <tr style="background-color: #f8fafc;">
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Department:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">${dept.toUpperCase()}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Shift:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">Shift ${shift}</td>
+                            </tr>
+                            <tr style="background-color: #f8fafc;">
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Assigned Person:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">${assignedPersonName} (ID: ${assignedIdRef})</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Resolution Time:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0;">${resolutionTime} on ${resolutionDate}</td>
+                            </tr>
+                            <tr style="background-color: #f8fafc;">
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Confirmation Status:</td>
+                              <td style="padding: 10px; border: 1px solid #e2e8f0; color: #10b981; font-weight: bold;">RESOLVED / SYNCED</td>
+                            </tr>
+                          </table>
+                          <p style="font-size: 11px; color: #64748b;">This message was automatically generated by PivotPath Industrial Compliance Watchdog engine.</p>
+                        </div>
+                      `;
+
+                      await fetch(`${API}/api/admin/send-mail`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          recipient_email: recipientCsv,
+                          subject: mailSubject,
+                          body: mailBody
+                        })
+                      });
+                    }
+                  } catch (emailErr) {
+                    console.error("Watchdog dispatch error:", emailErr);
+                  }
+                }
+
                 notifySuccess(isResolved ? "Issue resolved & synchronized" : "Issue marked as pending");
               } catch (e) {
                 notifyError("Sync failed");
@@ -795,15 +996,56 @@ export default function QualityPage() {
             logs={activityLogs}
             isSuperAdmin={isSuperAdmin}
             canUpdate={canUpdate}
-            onAdd={() => addRow('activity')}
+            onAdd={() => { if (!canUpdate) return; setIsActionTrackerMode(true); setIsAddChallengeOpen(true); }}
             onUpdate={handleUpdateActivity}
             onRemove={(i) => removeRow('activity', i)}
             onChange={(i, f, v) => handleLogChange('activity', i, f, v)}
             loading={tableSyncing.activity}
             theme="blue"
             onShowDetails={handleShowActionDetails}
+            resolveName={resolveName}
+            onOpenFda={(log) => { setSelectedChallengeForFda(log); setIsFdaWizardOpen(true); }}
           />
         </div>
+        {isFdaWizardOpen && selectedChallengeForFda && (
+          <FDAInvestigationWizard
+            challenge={selectedChallengeForFda}
+            dept={dept || 'fgmw'}
+            shift={shift || '1'}
+            onClose={() => {
+              setIsFdaWizardOpen(false);
+              setSelectedChallengeForFda(null);
+            }}
+            onSaveChallenge={async (wizardData) => {
+              await fetchMetrics(false);
+            }}
+          />
+        )}
+        {isAddChallengeOpen && (
+          <AddChallengeModal
+            isOpen={isAddChallengeOpen}
+            onClose={() => setIsAddChallengeOpen(false)}
+            dept={dept || 'fgmw'}
+            shift={shift || '1'}
+            letter="Q"
+            isActionTracker={isActionTrackerMode}
+            onSave={(newChallenge) => {
+              navigate(`/fda-defence/challenge/${newChallenge.trackerId}`);
+            }}
+          />
+        )}
+        {/* AI Resolution Verification Modal */}
+        <AIResolutionVerificationModal
+          isOpen={!!selectedChallengeForVerification}
+          onClose={() => setSelectedChallengeForVerification(null)}
+          challenge={selectedChallengeForVerification}
+          onVerificationComplete={(updatedCh) => {
+            if (updatedCh) {
+              setSelectedChallengeForVerification(prev => ({ ...prev, ...updatedCh }));
+            }
+            fetchMetrics(false);
+          }}
+        />
       </main>
 
       {/* Floating All-Shifts CSV download button */}
@@ -899,7 +1141,7 @@ export default function QualityPage() {
 
 // --- SUB-COMPONENTS ---
 
-const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRemove, onChange, loading, theme, onToggleResolve, onShowDetails, canUpdate }) => {
+const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRemove, onChange, loading, theme, onToggleResolve, onShowDetails, canUpdate, resolveName, onOpenFda, onOpenVerification }) => {
   const themeStyles = {
     emerald: {
       bg: 'bg-emerald-50/30',
@@ -943,12 +1185,12 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
       </div>
 
       <div className="px-4 py-2 bg-slate-50 flex gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 select-none">
-        <span className="w-20">{type === 'staff' ? 'Date' : 'Employee ID'}</span>
-        <span className="flex-1">{type === 'staff' ? 'Assigned To' : 'Description'}</span>
-        <span className="flex-1">{type === 'staff' ? 'Action Status' : 'Action Taken'}</span>
-        <span className="w-12 text-right">Time</span>
-        {type === 'staff' && <span className="w-20 text-center">Resolve</span>}
-        {isSuperAdmin && <span className="w-6"></span>}
+        <span className="w-24">Tracking ID</span>
+        <span className="w-24">Date</span>
+        <span className="flex-1">Assigned To</span>
+        <span className="flex-1">Action</span>
+        <span className="w-16">Time</span>
+        <span className="w-24 text-center">Resolve</span>
       </div>
 
       <div className="overflow-y-auto flex-1 p-4 divide-y divide-slate-100 custom-scrollbar" data-log-table={title}>
@@ -969,49 +1211,58 @@ const LogTable = ({ type, title, icon, logs, isSuperAdmin, onAdd, onUpdate, onRe
                   if (onShowDetails) onShowDetails(log);
                 }
               }}
-              className={`py-2.5 flex gap-4 items-center group rounded-lg transition-all px-2 cursor-pointer ${rowBgClass}`}
+              className={`py-3 flex gap-4 items-center group rounded-lg transition-all px-4 cursor-pointer ${rowBgClass}`}
             >
-              <input
-                disabled={!canUpdate}
-                className="w-20 text-[10px] font-bold text-slate-500 bg-slate-100/50 p-1.5 rounded border border-transparent focus:border-slate-300 outline-none transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
-                value={isStaff ? (log.date || log.rawDate || '') : log.id}
-                onChange={(e) => onChange(i, isStaff ? 'date' : 'id', e.target.value)}
-              />
-              <input
-                disabled={!canUpdate}
-                className="flex-1 text-[11px] font-bold text-slate-700 outline-none border-b border-transparent focus:border-emerald-300 transition-colors bg-transparent animate-fade-in disabled:text-slate-400 disabled:cursor-not-allowed"
-                placeholder={isStaff ? "Assigned Name" : "Name/Description"}
-                value={isStaff ? (log.assignedName || log.name || '') : log.name}
-                onChange={(e) => onChange(i, isStaff ? 'assignedName' : 'name', e.target.value)}
-              />
-              <input
-                disabled={!canUpdate}
-                className="flex-1 text-[10px] font-medium text-slate-500 outline-none border-b border-transparent focus:border-emerald-300 bg-transparent animate-fade-in disabled:text-slate-400 disabled:cursor-not-allowed"
-                placeholder={isStaff ? "Action Status" : "Action Taken"}
-                value={log.action}
-                onChange={(e) => onChange(i, 'action', e.target.value)}
-              />
-              <div className="flex items-center gap-1 w-12 text-right">
-                <Clock size={10} className="text-slate-300" />
-                <span className="text-[9px] font-black text-slate-400">{log.time}</span>
-              </div>
-              {isStaff && onToggleResolve && (
-                <div className="flex items-center gap-1.5 select-none shrink-0">
-                  <span className={`text-[8px] font-black uppercase tracking-wider ${isResolved ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {isResolved ? 'Resolved' : 'Pending'}
-                  </span>
+              {/* Tracking ID */}
+              <span className="w-24 text-[10px] font-black text-slate-800 tracking-tight">
+                {log.trackerId || log.id || (log._id ? `CH-2026-${log._id.toString().slice(-4).toUpperCase()}` : '') || `CH-2026-${(i + 1).toString().padStart(4, '0')}`}
+              </span>
+
+              {/* Date */}
+              <span className="w-24 text-[9.5px] font-bold text-slate-500">{log.date || log.rawDate || getISTDate()}</span>
+
+              {/* Assigned To */}
+              <span className="flex-1 text-[10px] font-black text-slate-700 truncate">
+                {log.responsiblePersonName || log.responsiblePerson?.name || (log.assignedName && log.assignedName !== 'N/A' ? log.assignedName : null) || (resolveName ? resolveName(log.assignedId, '') : null) || log.reportedByName || 'System Assigned'}
+              </span>
+
+              {/* Action */}
+              <span className="flex-1 text-[9.5px] font-medium text-slate-500 truncate">{log.action || log.actionNotes || log.capa || log.description || log.name || 'Action Logged'}</span>
+
+              {/* Time */}
+              <span className="w-16 text-[9px] font-black text-slate-400">{log.time || log.occurredTime || getISTTime()}</span>
+
+              {/* Resolve Toggle & Superadmin Delete */}
+              <div className="w-24 flex items-center justify-center gap-2 shrink-0 select-none">
+                {isStaff && (
                   <button
                     disabled={!canUpdate}
-                    onClick={() => onToggleResolve(i, !isResolved)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : ''} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
+                    type="button"
+                    title={isResolved ? "View Verification / Resolution Status" : "Upload After Image & Verify Resolution"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenVerification) {
+                        onOpenVerification(log);
+                      } else if (onToggleResolve) {
+                        onToggleResolve(i, !isResolved);
+                      }
+                    }}
+                    className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
                   >
-                    <div className="bg-white w-4 h-4 rounded-full shadow-md"></div>
+                    <div className="bg-white w-3.5 h-3.5 rounded-full shadow-md"></div>
                   </button>
-                </div>
-              )}
-              {isSuperAdmin && (
-                <button onClick={() => onRemove(i)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50"><Trash2 size={14} /></button>
-              )}
+                )}
+                {isSuperAdmin && onRemove && (
+                  <button
+                    type="button"
+                    title="Delete Entry (Superadmin Only)"
+                    onClick={(e) => { e.stopPropagation(); onRemove(i); }}
+                    className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}

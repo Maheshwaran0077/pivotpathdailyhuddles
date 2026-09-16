@@ -9,7 +9,10 @@ import { ALL_DEPARTMENTS } from '../departments';
 
 const LOCAL_ALL_DEPARTMENTS = ALL_DEPARTMENTS;
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 const ALL_DEPT_SHIFTS = ALL_DEPARTMENTS.flatMap(d => ['1','2','3'].map(s => ({ dept: d.key, deptName: d.short, shift: s })));
 
 const SHIFTS = ['1', '2', '3'];

@@ -1,15 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, X, Save, ChevronLeft, ChevronRight, Lock, CheckCircle2, ShieldAlert, Clock, Download, Trash2 } from 'lucide-react';
 import axios from 'axios';
+import FDAInvestigationWizard from '../components/FDAInvestigationWizard';
+import AddChallengeModal from '../components/AddChallengeModal';
+import AIResolutionVerificationModal from '../components/AIResolutionVerificationModal';
+import { showDetailedAuditLog } from '../utils/logDetailRenderer';
 // IST timezone helpers
 const getISTDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const getISTTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 
-const DEPT_FULL = { fg: 'Finished Good Material Warehouse', pm: 'Packing Material Warehouse', rm: 'Raw Material Warehouse' };
+const DEPT_FULL = { fgmw: 'Finished Goods Material Warehouse', fg: 'Finished Goods Material Warehouse', pmw: 'Packing Material Warehouse', pm: 'Packing Material Warehouse', rmw: 'Raw Material Warehouse', rm: 'Raw Material Warehouse', qcmad: 'QC & Microbiology Lab', pro: 'Production', pop: 'Post Production', ppp: 'Primary Packing Production', spp: 'Secondary Packing Production', fac: 'Facilities', ehs: 'Environment, Health & Safety', engineering: 'Engineering & Works Management', hr: 'Human Resources' };
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const THEME_STYLES = {
@@ -37,7 +44,14 @@ const Health = () => {
   const canUpdate    = ((isSupervisor && isAssignedDept && isAssignedShift) || isSuperAdmin) && shift !== 'overall';
   const reportRef    = useRef(null);
 
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(() => {
+    const storedMonth = localStorage.getItem('selectedMonthIndex');
+    return storedMonth !== null ? parseInt(storedMonth, 10) : new Date().getMonth();
+  });
+
+  useEffect(() => {
+    localStorage.setItem('selectedMonthIndex', currentMonthIndex.toString());
+  }, [currentMonthIndex]);
   const currentYear = new Date().getFullYear();
   const currentMonthName = MONTHS[currentMonthIndex];
 
@@ -61,11 +75,20 @@ const Health = () => {
 
   // New state for Staff and Activity Logs
   const [staffLogs, setStaffLogs] = useState([]);
+  const [isAddChallengeOpen, setIsAddChallengeOpen] = useState(false);
+  const [isActionTrackerMode, setIsActionTrackerMode] = useState(false);
+  const [selectedChallengeForVerification, setSelectedChallengeForVerification] = useState(null);
+  const [selectedChallengeForFda, setSelectedChallengeForFda] = useState(null);
+  const [isFdaWizardOpen, setIsFdaWizardOpen] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [tableSyncing, setTableSyncing] = useState({ staff: false, activity: false });
   const [deleteConfig, setDeleteConfig] = useState({ isOpen: false, type: null, index: null });
+
+  const handleShowLogDetails = (log) => {
+    showDetailedAuditLog(log);
+  };
 
   const showNotify = (msg, type = 'success') => {
     setNotification({ show: true, message: msg, type });
@@ -169,40 +192,41 @@ const Health = () => {
   }, [dept, shift]);
 
   // Fetch metrics data for logs (H pillar)
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        if (shift === 'overall') {
-          const response = await fetch(`${API}/api/metrics?dept=${dept || 'fgmw'}`);
-          const dbData = await response.json();
-          if (dbData?.length > 0) {
-            const hLive = dbData.find(d => d.letter === 'H');
-            if (hLive) {
-              const allStaffLogs = [];
-              const allActivityLogs = [];
-              ['1', '2', '3'].forEach(s => {
-                const sData = hLive.shifts?.[s] || {};
-                if (Array.isArray(sData.staffLogs)) allStaffLogs.push(...sData.staffLogs);
-                if (Array.isArray(sData.activityLogs)) allActivityLogs.push(...sData.activityLogs);
-              });
-              setStaffLogs(allStaffLogs);
-              setActivityLogs(allActivityLogs);
-            }
-          }
-        } else {
-          const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fgmw'}`;
-          const response = await fetch(url);
-          const dbData = await response.json();
-          if (dbData?.length > 0) {
-            const hLive = dbData.find(d => d.letter === 'H');
-            setStaffLogs(hLive?.staffLogs || []);
-            setActivityLogs(hLive?.activityLogs || []);
+  const fetchMetrics = useCallback(async () => {
+    try {
+      if (shift === 'overall') {
+        const response = await fetch(`${API}/api/metrics?dept=${dept || 'fgmw'}`);
+        const dbData = await response.json();
+        if (dbData?.length > 0) {
+          const hLive = dbData.find(d => d.letter === 'H');
+          if (hLive) {
+            const allStaffLogs = [];
+            const allActivityLogs = [];
+            ['1', '2', '3'].forEach(s => {
+              const sData = hLive.shifts?.[s] || {};
+              if (Array.isArray(sData.staffLogs)) allStaffLogs.push(...sData.staffLogs);
+              if (Array.isArray(sData.activityLogs)) allActivityLogs.push(...sData.activityLogs);
+            });
+            setStaffLogs(allStaffLogs);
+            setActivityLogs(allActivityLogs);
           }
         }
-      } catch (error) { console.error(error); }
-    };
-    fetchMetrics();
+      } else {
+        const url = `${API}/api/metrics?shift=${shift || '1'}&dept=${dept || 'fgmw'}`;
+        const response = await fetch(url);
+        const dbData = await response.json();
+        if (dbData?.length > 0) {
+          const hLive = dbData.find(d => d.letter === 'H');
+          setStaffLogs(hLive?.staffLogs || []);
+          setActivityLogs(hLive?.activityLogs || []);
+        }
+      }
+    } catch (error) { console.error(error); }
   }, [shift, dept]);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
 
   // --- helpers ---
 
@@ -315,9 +339,23 @@ const Health = () => {
     if (type === 'staff' || type === 'activity') {
       const setter = type === 'staff' ? setStaffLogs : setActivityLogs;
       const currentLogs = type === 'staff' ? staffLogs : activityLogs;
-      const updatedLogs = currentLogs.filter((_, i) => i !== index);
+      const targetItem = currentLogs[index];
+      const trackerId = targetItem?.trackerId || targetItem?.id || targetItem?._id;
+      const userRole = user?.role || 'superadmin';
 
       try {
+        if (trackerId) {
+          await fetch(`${API}/api/fda/challenges/${trackerId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'user-role': userRole
+            }
+          }).catch(() => {});
+        }
+
+        const updatedLogs = currentLogs.filter((_, i) => i !== index);
+
         const res = await fetch(`${API}/api/metrics/${type}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -326,10 +364,13 @@ const Health = () => {
             logs: updatedLogs,
             empId: user?.employeeId,
             empName: user?.name,
-            userRole: user?.role,
+            userRole,
           }),
         });
-        if (res.ok) setter(updatedLogs);
+        if (res.ok) {
+          setter(updatedLogs);
+          await fetchMetrics(false);
+        }
       } catch (e) { showNotify("Delete operation failed.", "error"); }
     }
     setDeleteConfig({ isOpen: false, type: null, index: null });
@@ -430,6 +471,29 @@ const Health = () => {
           <ChevronLeft size={18}/> <span className="hidden sm:inline">Back</span>
         </button>
         <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200 shadow-inner select-none shrink-0">
+            {[
+              { key: 'overall', label: t('navbar.overall') },
+              { key: '1', label: 'S1' },
+              { key: '2', label: 'S2' },
+              { key: '3', label: 'S3' }
+            ].map((item) => {
+              const isActive = (shift || 'overall') === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => navigate(`/shift/${item.key}/${dept || 'fgmw'}/h`)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 ${
+                    isActive 
+                      ? 'bg-rose-600 text-white shadow-sm scale-105 font-black' 
+                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100/85 font-bold'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
           <button onClick={downloadCSV}
             className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all">
             <Download size={13}/> <span className="hidden sm:inline">Shiftwise</span>
@@ -535,11 +599,50 @@ const Health = () => {
           })}
         </div>
 
-        {/* TEAM & STAFF COMPLIANCE and OPERATIONAL LOGS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-2">
-          <LogContainer title="Team & Staff Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsStaffModalOpen(true); }} setDeleteConfig={setDeleteConfig} colorTheme="emerald" />
-          <LogContainer title="Operational Quality Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActivityModalOpen(true); }} setDeleteConfig={setDeleteConfig} colorTheme="blue" />
+        {/* Bottom logs section */}
+        <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <LogContainer title="Team & Staff Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsActionTrackerMode(false); setIsAddChallengeOpen(true); }} setDeleteConfig={setDeleteConfig} colorTheme="emerald" onShowDetails={handleShowLogDetails} onOpenVerification={(log) => setSelectedChallengeForVerification(log)} onOpenFda={(log) => { setSelectedChallengeForFda(log); setIsFdaWizardOpen(true); }} />
+          <LogContainer title="Actions Health Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActionTrackerMode(true); setIsAddChallengeOpen(true); }} setDeleteConfig={setDeleteConfig} colorTheme="blue" onShowDetails={handleShowLogDetails} onOpenVerification={(log) => setSelectedChallengeForVerification(log)} />
         </div>
+        {isFdaWizardOpen && selectedChallengeForFda && (
+          <FDAInvestigationWizard
+            challenge={selectedChallengeForFda}
+            dept={dept || 'fgmw'}
+            shift={shift || '1'}
+            onClose={() => {
+              setIsFdaWizardOpen(false);
+              setSelectedChallengeForFda(null);
+            }}
+            onSaveChallenge={async (wizardData) => {
+              // Refresh is handled dynamically
+            }}
+          />
+        )}
+        {isAddChallengeOpen && (
+          <AddChallengeModal
+            isOpen={isAddChallengeOpen}
+            onClose={() => setIsAddChallengeOpen(false)}
+            dept={dept || 'fgmw'}
+            shift={shift || '1'}
+            letter="H"
+            isActionTracker={isActionTrackerMode}
+            onSave={(newChallenge) => {
+              navigate(`/fda-defence/challenge/${newChallenge.trackerId}`);
+            }}
+          />
+        )}
+        {/* AI Resolution Verification Modal */}
+        <AIResolutionVerificationModal
+          isOpen={!!selectedChallengeForVerification}
+          onClose={() => setSelectedChallengeForVerification(null)}
+          challenge={selectedChallengeForVerification}
+          onVerificationComplete={(updatedCh) => {
+            if (updatedCh) {
+              setSelectedChallengeForVerification(prev => ({ ...prev, ...updatedCh }));
+            }
+            fetchMetrics();
+          }}
+        />
       </div>{/* end grid wrapper */}
 
       {/* Floating All-Shifts CSV download button */}
@@ -656,49 +759,116 @@ const Health = () => {
 
       {/* --- Log Modals --- */}
       <LogEntryModal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title="Team Compliance" type="staff" data={staffLogs} 
-        onAdd={() => setStaffLogs([{id:"", name:"", action:"", time: getISTTime()}, ...staffLogs])}
+        onAdd={() => { setIsActionTrackerMode(false); setIsAddChallengeOpen(true); }}
         onEdit={(i, f, v) => setStaffLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
-        setDeleteConfig={setDeleteConfig} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} />
-
+        setDeleteConfig={setDeleteConfig} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} onShowDetails={handleShowLogDetails} onOpenFda={(log) => { setSelectedChallengeForFda(log); setIsFdaWizardOpen(true); }} />
+ 
       <LogEntryModal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Operational Activity" type="activity" data={activityLogs} 
-        onAdd={() => setActivityLogs([{id:"", name:"", action:"", time: getISTTime()}, ...activityLogs])}
+        onAdd={() => { setIsActionTrackerMode(true); setIsAddChallengeOpen(true); }}
         onEdit={(i, f, v) => setActivityLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
-        setDeleteConfig={setDeleteConfig} onSubmit={() => handleLogSubmit('activity')} syncing={tableSyncing.activity} />
+        setDeleteConfig={setDeleteConfig} onSubmit={() => handleLogSubmit('activity')} syncing={tableSyncing.activity} onShowDetails={handleShowLogDetails} />
 
     </div>
   );
 };
 
 // --- Reusable Log Subcomponents ---
-
-const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig }) => {
+ 
+const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleResolve, onShowDetails, onOpenFda, onOpenVerification }) => {
+  const user = JSON.parse(localStorage.getItem('userInfo')) || {};
+  const isSuperAdmin = user?.role === 'superadmin';
   const isStaff = type === 'staff';
+  const canUpdate = isSuperAdmin || user?.role === 'supervisor';
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="overflow-x-auto flex-1 flex flex-col">
-        <div className="min-w-[360px] flex flex-col flex-1">
-          <div className="px-3 sm:px-8 py-3 bg-slate-50 grid grid-cols-5 text-[9px] font-black text-slate-400 uppercase border-b border-slate-100 shrink-0">
-            <span className="truncate">{isStaff ? 'ID' : 'Employee ID'}</span><span className="truncate">{isStaff ? 'Name' : 'Description'}</span><span className="col-span-2 truncate">Details</span><span className="text-right truncate">Del</span>
+        <div className="min-w-[420px] flex flex-col flex-1">
+          {/* Header */}
+          <div className="px-4 py-2 bg-slate-50 flex gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 select-none">
+            <span className="w-24">Tracking ID</span>
+            <span className="w-24">Date</span>
+            <span className="flex-1">Assigned To</span>
+            <span className="flex-1">Action</span>
+            <span className="w-16">Time</span>
+            <span className="w-24 text-center">Resolve</span>
           </div>
+          {/* Rows */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
             {data.length === 0 ? (
               <div className="p-8 text-center text-slate-300 text-[10px] font-bold">No entries yet. Click "+ New Entry" to add one.</div>
             ) : (
-              data.map((log, i) => (
-                <div key={i} className={`grid grid-cols-5 py-3 items-center group px-3 sm:px-8 transition-colors ${i === 0 && (!log.id && !log.name && !log.action) ? 'bg-emerald-50/40 border-l-4 border-emerald-500' : 'hover:bg-slate-50/50'}`}>
-                  <input disabled={readonly} className={`text-[10px] font-black bg-transparent outline-none truncate mr-1 min-w-0 ${isStaff ? 'text-emerald-600' : 'text-blue-600'}`} value={log.id} onChange={(e) => onEdit && onEdit(i, 'id', e.target.value)} />
-                  <input disabled={readonly} className="text-[10px] font-bold text-slate-700 bg-transparent outline-none truncate mr-1 min-w-0" value={log.name} onChange={(e) => onEdit && onEdit(i, 'name', e.target.value)} />
-                  <div className="col-span-2 flex items-center gap-1 min-w-0 overflow-hidden">
-                    <input disabled={readonly} className="text-[9px] font-bold text-slate-400 uppercase bg-transparent outline-none min-w-0 truncate flex-1" value={log.action} onChange={(e) => onEdit && onEdit(i, 'action', e.target.value)} />
-                    <span className="text-[9px] text-slate-300 shrink-0">{log.time}</span>
+              data.map((log, i) => {
+                const isResolved = log.resolved === true;
+                const rowBgClass = isStaff 
+                  ? (isResolved ? 'bg-emerald-50/50 border-l-4 border-emerald-500 hover:bg-emerald-100/50' : 'bg-red-50/55 border-l-4 border-red-400 hover:bg-red-100/50')
+                  : 'hover:bg-slate-50/50';
+
+                return (
+                  <div 
+                    key={i} 
+                    onClick={(e) => {
+                      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
+                        if (onShowDetails) onShowDetails(log);
+                      }
+                    }}
+                    className={`py-3 flex gap-4 items-center group px-4 cursor-pointer ${rowBgClass}`}
+                  >
+                    {/* Tracking ID */}
+                    <span className="w-24 text-[10px] font-black text-slate-800 tracking-tight">
+                      {log.trackerId || log.id || (log._id ? `CH-2026-${log._id.toString().slice(-4).toUpperCase()}` : '') || `CH-2026-${(i + 1).toString().padStart(4, '0')}`}
+                    </span>
+
+                    {/* Date */}
+                    <span className="w-24 text-[9.5px] font-bold text-slate-500">{log.date || log.rawDate || getISTDate()}</span>
+
+                    {/* Assigned To */}
+                    <span className="flex-1 text-[10px] font-black text-slate-700 truncate">
+                      {log.responsiblePersonName || log.responsiblePerson?.name || (log.assignedName && log.assignedName !== 'N/A' ? log.assignedName : null) || log.reportedByName || 'System Assigned'}
+                    </span>
+
+                    {/* Action */}
+                    <span className="flex-1 text-[9.5px] font-medium text-slate-500 truncate">{log.action || log.actionNotes || log.capa || log.description || log.name || 'Action Logged'}</span>
+
+                    {/* Time */}
+                    <span className="w-16 text-[9px] font-black text-slate-400">{log.time || log.occurredTime || getISTTime()}</span>
+
+                    {/* Resolve Toggle & Delete */}
+                    <div className="w-24 flex items-center justify-center gap-2 shrink-0 select-none">
+                      {isStaff && (
+                        <button
+                          type="button"
+                          title={isResolved ? "View Verification / Resolution Status" : "Upload After Image & Verify Resolution"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenVerification) {
+                              onOpenVerification(log);
+                            } else if (onToggleResolve) {
+                              onToggleResolve(i, !isResolved);
+                            }
+                          }}
+                          className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center hover:scale-105 active:scale-95 ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
+                        >
+                          <div className="bg-white w-3.5 h-3.5 rounded-full shadow-md"></div>
+                        </button>
+                      )}
+                      {setDeleteConfig && (
+                        <button
+                          type="button"
+                          title="Delete Entry (Superadmin Only)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfig({ isOpen: true, type, index: i });
+                          }}
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    {!readonly && (
-                      <button onClick={() => setDeleteConfig({ isOpen: true, type, index: i })} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors"><Trash2 size={13}/></button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -707,7 +877,7 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig }) => {
   );
 };
 
-const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig }) => {
+const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, onShowDetails, onOpenFda, onOpenVerification }) => {
   const theme = THEME_STYLES[colorTheme];
   return (
     <div className="bg-white rounded-[2.5rem] shadow-md border-2 border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
@@ -715,7 +885,7 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig }
         <h3 className={`font-black text-[11px] uppercase ${theme.text}`}>{title}</h3>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col">
-        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} />
+        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} onShowDetails={onShowDetails} onOpenFda={onOpenFda} onOpenVerification={onOpenVerification} />
       </div>
       {data.length > 8 && (
         <div className="px-8 py-3 bg-slate-50 border-t border-slate-100 text-center">
@@ -726,11 +896,11 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig }
   );
 };
 
-const LogEntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig }) => {
+const LogEntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig, onShowDetails, onOpenFda }) => {
   const tableRef = useRef(null);
   if (!isOpen) return null;
   const theme = THEME_STYLES[type === 'staff' ? 'emerald' : 'blue'];
-
+ 
   const handleAddNewEntry = () => {
     onAdd();
     setTimeout(() => {
@@ -739,7 +909,7 @@ const LogEntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSu
       }
     }, 0);
   };
-
+ 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
       <div className="bg-white rounded-[2.5rem] w-full max-w-3xl flex flex-col h-[85vh] shadow-2xl">
@@ -748,7 +918,7 @@ const LogEntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSu
           <button onClick={handleAddNewEntry} className={`${theme.bg} text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase shadow-lg transition-all active:scale-95 hover:shadow-xl`}>+ New Entry</button>
         </div>
         <div className="flex-1 overflow-y-auto" ref={tableRef}>
-          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} />
+          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} onShowDetails={onShowDetails} onOpenFda={onOpenFda} />
         </div>
         <div className="p-8 border-t flex items-center gap-6">
           <button onClick={onClose} className="font-black text-slate-400 text-[10px] uppercase">Discard</button>

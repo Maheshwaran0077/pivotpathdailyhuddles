@@ -6,7 +6,13 @@ import {
 import axios from 'axios';
 
 // Backend API endpoint configuration
-const API_URL = 'http://localhost:8000';
+const API_URL = (window.location.port && window.location.port !== '8000')
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : window.location.origin;
+
+const EXPRESS_API = (window.location.port && window.location.port !== '5000')
+  ? `${window.location.protocol}//${window.location.hostname}:5000`
+  : 'http://localhost:5000';
 
 const ChatbotWidget = ({ onOpenRichText, summaryData, onRefreshSummary }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -268,14 +274,23 @@ const ChatbotWidget = ({ onOpenRichText, summaryData, onRefreshSummary }) => {
         <p>Regards,<br/><strong>Superadministrator Portal</strong></p>
       `;
 
-      const response = await axios.post(`${API_URL}/api/v1/admin/send-mail`, {
-        recipient_email: hod.hod_email,
-        subject: emailSubject,
-        body: emailBody
-      });
+      let response;
+      try {
+        response = await axios.post(`${API_URL}/api/v1/admin/send-mail`, {
+          recipient_email: hod.hod_email,
+          subject: emailSubject,
+          body: emailBody
+        });
+      } catch (err) {
+        console.warn('Chatbot send-mail failed on port 8000, trying Express port 5000 fallback...');
+        response = await axios.post(`${EXPRESS_API}/api/admin/send-mail`, {
+          recipient_email: hod.hod_email,
+          subject: emailSubject,
+          body: emailBody
+        });
+      }
 
       if (response.data.status === 'success') {
-        // Success bubble logged in chatbot
         addMessage('bot', 'text', `✉️ **Silent Email Dispatched Successfully!**\n\n**Recipient:** ${hod.hod_name} (${roleText} · ${hod.hod_email})\n**Message:** "${messageText}"\n\n*Dispatched silently via SMTP background pipeline.*`);
       }
     } catch (err) {

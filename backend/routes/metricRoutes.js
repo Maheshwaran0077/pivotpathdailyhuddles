@@ -41,10 +41,7 @@ const getShiftCounts = (metric, shift, month = null) => {
     : logs;
 
   if (!logs.length) {
-    if (month) return { totalAlerts: 0, totalSuccess: 0 };
-    totalAlerts += shiftData.alerts ?? 0;
-    totalSuccess += shiftData.success ?? 0;
-    return { totalAlerts, totalSuccess };
+    return { totalAlerts: 0, totalSuccess: 0 };
   }
 
   const count = (isSuccess) => {

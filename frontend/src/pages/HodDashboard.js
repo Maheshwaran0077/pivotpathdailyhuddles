@@ -6,7 +6,10 @@ import {
 import axios from 'axios';
 import { ALL_DEPARTMENTS } from '../departments';
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 
 const strToArr = (str) =>
   !str || str === 'NONE' ? [] : str.split(',').map(s => s.trim()).filter(Boolean);

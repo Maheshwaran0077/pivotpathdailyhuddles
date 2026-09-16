@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Lightbulb, Send, CheckCircle, Loader2, AlertCircle, Download } from 'lucide-react';
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 
 const BENEFIT_OPTIONS = ['Safety', 'Quality', 'Cost', 'Delivery', 'Morale'];
 

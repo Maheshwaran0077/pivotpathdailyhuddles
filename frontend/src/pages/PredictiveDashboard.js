@@ -11,7 +11,10 @@ import {
   Settings, ClipboardCheck, Wrench, Truck, Package, PackageCheck, Archive, Layers, Eye, GitFork, X, Sparkles, Zap
 } from 'lucide-react';
 
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
 
 const DEPARTMENTS_LIST = [
   'Finished Good Material Warehouse',
@@ -189,6 +192,16 @@ const CosmicHeaderBackground = () => {
 export default function PredictiveDashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
+  const [showMeetToast, setShowMeetToast] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('meetScheduled') === 'true') {
+      setShowMeetToast(true);
+      localStorage.removeItem('meetScheduled');
+      const timer = setTimeout(() => setShowMeetToast(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   const [metrics, setMetrics] = useState({ rollingAverage: 0, trendVelocity: 0, standardDeviation: 0 });
   const [stations, setStations] = useState([]);
   const [departmentsData, setDepartmentsData] = useState([]);
@@ -1179,7 +1192,7 @@ export default function PredictiveDashboard() {
                   </div>
 
                   <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                       <ComposedChart data={processedHistoricalData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                         <XAxis 
@@ -1250,7 +1263,7 @@ export default function PredictiveDashboard() {
                   </div>
 
                   <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                       <ComposedChart data={forecastDataWithRates} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="confidenceBand" x1="0" y1="0" x2="0" y2="1">
@@ -1490,6 +1503,21 @@ export default function PredictiveDashboard() {
               </div>
             </div>
           )}
+
+        {/* Google Meet Success Toast Notification */}
+        {showMeetToast && (
+          <div className="fixed bottom-6 right-6 z-[9999] bg-slate-900 border-l-4 border-emerald-500 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce max-w-sm">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 text-emerald-400">
+              ⚡
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">Meeting Scheduled</h4>
+              <p className="text-[11px] text-slate-300 font-bold leading-tight mt-0.5">
+                Google Meet link sent successfully to high-alert department HODs.
+              </p>
+            </div>
+          </div>
+        )}
 
         </>
       )}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
@@ -12,16 +12,23 @@ import {
 } from 'recharts';
 import CircularTracker from '../components/CircularTracker';
 import { dashboardMetrics as initialData } from '../dashboardData';
+import FDAInvestigationWizard from '../components/FDAInvestigationWizard';
+import AddChallengeModal from '../components/AddChallengeModal';
+import AIResolutionVerificationModal from '../components/AIResolutionVerificationModal';
+import { showDetailedAuditLog } from '../utils/logDetailRenderer';
 
 const MySwal = withReactContent(Swal);
 
 const getISTDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 const getISTTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)}/api/metrics`;
-const API = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+const API = process.env.REACT_APP_API_URL || 
+  ((window.location.port && window.location.port !== '5000') 
+    ? `${window.location.protocol}//${window.location.hostname}:5000` 
+    : window.location.origin);
+const API_BASE_URL = `${API}/api/metrics`;
 
-const DEPT_FULL = { fgmw: 'Finished Goods Material Warehouse', fg: 'Finished Goods Material Warehouse', pmw: 'Packing Material Warehouse', pm: 'Packing Material Warehouse', rmw: 'Raw Material Warehouse', rm: 'Raw Material Warehouse' };
+const DEPT_FULL = { fgmw: 'Finished Goods Material Warehouse', fg: 'Finished Goods Material Warehouse', pmw: 'Packing Material Warehouse', pm: 'Packing Material Warehouse', rmw: 'Raw Material Warehouse', rm: 'Raw Material Warehouse', qcmad: 'QC & Microbiology Lab', pro: 'Production', pop: 'Post Production', ppp: 'Primary Packing Production', spp: 'Secondary Packing Production', fac: 'Facilities', ehs: 'Environment, Health & Safety', engineering: 'Engineering & Works Management', hr: 'Human Resources' };
 
 const THEME_STYLES = {
   emerald: { bg: 'bg-emerald-600', text: 'text-emerald-800', light: 'bg-emerald-50/20', border: 'border-emerald-100' },
@@ -65,12 +72,32 @@ const SafetyPage = () => {
   const [alertBrief, setAlertBrief] = useState("");
 
   const [timeLock, setTimeLock] = useState(null);
-  const [viewDate, setViewDate] = useState(new Date());
+  const [viewDate, setViewDate] = useState(() => {
+    const storedMonth = localStorage.getItem('selectedMonthIndex');
+    const storedYear = localStorage.getItem('selectedYear');
+    if (storedMonth !== null && storedYear !== null) {
+      const d = new Date();
+      d.setMonth(parseInt(storedMonth, 10));
+      d.setFullYear(parseInt(storedYear, 10));
+      return d;
+    }
+    return new Date();
+  });
+
+  useEffect(() => {
+    localStorage.setItem('selectedMonthIndex', viewDate.getMonth().toString());
+    localStorage.setItem('selectedYear', viewDate.getFullYear().toString());
+  }, [viewDate]);
   const viewMonthName = viewDate.toLocaleString('default', { month: 'long' }).toUpperCase();
   const viewYear = viewDate.getFullYear();
 
   // New state for Logs
   const [staffLogs, setStaffLogs] = useState([]);
+  const [isAddChallengeOpen, setIsAddChallengeOpen] = useState(false);
+  const [isActionTrackerMode, setIsActionTrackerMode] = useState(false);
+  const [selectedChallengeForVerification, setSelectedChallengeForVerification] = useState(null);
+  const [selectedChallengeForFda, setSelectedChallengeForFda] = useState(null);
+  const [isFdaWizardOpen, setIsFdaWizardOpen] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -91,38 +118,10 @@ const SafetyPage = () => {
   };
 
   const handleShowLogDetails = (log) => {
-    MySwal.fire({
-      title: `<span class="text-sm font-black text-slate-800 uppercase tracking-wider">Complaint Detail</span>`,
-      html: `
-        <div class="text-left space-y-3 text-xs p-2">
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Date & Time:</strong> <span class="font-bold text-slate-700">${log.date || ''} ${log.time || ''}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Issue Type:</strong> <span class="font-bold text-slate-700">${log.issueType || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Reporter:</strong> <span class="font-bold text-slate-700">${log.reporter || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Assigned To:</strong> <span class="font-bold text-slate-700">${log.assignedName || 'N/A'} (ID: ${log.assignedId || 'N/A'})</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Status:</strong> <span class="font-bold ${log.resolved ? 'text-emerald-600' : 'text-rose-600'} uppercase">${log.resolved ? 'Resolved' : 'Pending'}</span></div>
-          <div class="flex justify-between"><strong class="text-slate-500 uppercase">Action Status:</strong> <span class="font-bold text-slate-700">${log.action || 'No action taken yet'}</span></div>
-        </div>
-      `,
-      confirmButtonText: 'CLOSE',
-      confirmButtonColor: '#475569'
-    });
+    showDetailedAuditLog(log);
   };
 
-  const handleShowActionDetails = (log) => {
-    MySwal.fire({
-      title: `<span class="text-sm font-black text-slate-800 uppercase tracking-wider">Action Log Detail</span>`,
-      html: `
-        <div class="text-left space-y-3 text-xs p-2">
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Employee ID:</strong> <span class="font-bold text-slate-700">${log.id || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Description:</strong> <span class="font-bold text-slate-700">${log.name || 'N/A'}</span></div>
-          <div class="flex justify-between border-b pb-1.5"><strong class="text-slate-500 uppercase">Action Status:</strong> <span class="font-bold text-slate-700">${log.action || 'N/A'}</span></div>
-          <div class="flex justify-between"><strong class="text-slate-500 uppercase">Time:</strong> <span class="font-bold text-slate-700">${log.time || 'N/A'}</span></div>
-        </div>
-      `,
-      confirmButtonText: 'CLOSE',
-      confirmButtonColor: '#475569'
-    });
-  };
+  const handleShowActionDetails = handleShowLogDetails;
 
   const handleToggleResolve = async (index, isResolved) => {
     const confirm = await MySwal.fire({
@@ -207,7 +206,7 @@ const SafetyPage = () => {
     return { successPercent, totalSuccess, totalAlerts, total };
   }, [metrics, viewDate, viewYear]);
 
-  const fetchMetrics = async (showLoader = true) => {
+  const fetchMetrics = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     try {
       const url = `${API_BASE_URL}?dept=${dept || 'fgmw'}`;
@@ -237,11 +236,11 @@ const SafetyPage = () => {
         }
       }
     } catch (error) { console.error(error); } finally { setLoading(false); }
-  };
+  }, [dept, shift]);
 
   useEffect(() => {
     fetchMetrics();
-  }, [shift, dept]);
+  }, [fetchMetrics]);
 
   const sData = useMemo(() => {
     const found = metrics.find(m => m.letter === 'S') || initialData[2];
@@ -401,6 +400,25 @@ const SafetyPage = () => {
         setReporterId("");
         setAlertBrief("");
         alert(`Shift ${shift} Updated`);
+        
+        if (isAlert) {
+          const loggedChallenge = {
+            id: assignedId,
+            name: `${alertBrief} (Reported by: ${reporterName} - ID: ${reporterId})`,
+            action: "",
+            time: getISTTime(),
+            resolved: false,
+            issueType: Number(numSafetyIncidents) > 0 ? "Safety Incident" : (Number(numNearMiss) > 0 ? "Near Miss" : "Unsafe Act"),
+            reporter: `${reporterName} (${reporterId})`,
+            assignedName: assignedName,
+            assignedId: assignedId,
+            date: `${d}/${m}/${y}`,
+            severity: severity,
+            affected: Number(peopleAffected)
+          };
+          setSelectedChallengeForFda(loggedChallenge);
+          setIsFdaWizardOpen(true);
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.error || 'Save failed — check time lock or connection');
@@ -436,6 +454,20 @@ const SafetyPage = () => {
       if (type === 'staff' || type === 'activity') {
         const setter = type === 'staff' ? setStaffLogs : setActivityLogs;
         const currentLogs = type === 'staff' ? staffLogs : activityLogs;
+        const targetItem = currentLogs[index];
+        const trackerId = targetItem?.trackerId || targetItem?.id || targetItem?._id;
+        const userRole = user?.role || 'superadmin';
+
+        if (trackerId) {
+          await fetch(`${API}/api/fda/challenges/${trackerId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'user-role': userRole
+            }
+          }).catch(() => {});
+        }
+
         const updatedLogs = currentLogs.filter((_, i) => i !== index);
 
         const res = await fetch(`${API_BASE_URL}/${type}`, {
@@ -446,12 +478,13 @@ const SafetyPage = () => {
             logs: updatedLogs,
             empId: user?.employeeId,
             empName: user?.name,
-            userRole: user?.role,
+            userRole,
           }),
         });
         if (res.ok) {
           setter(updatedLogs);
-          MySwal.fire('Deleted!', 'Log has been deleted successfully.', 'success');
+          await fetchMetrics(false);
+          MySwal.fire('Deleted!', 'Log has been deleted successfully from cloud.', 'success');
         }
       } 
       else if (type === 'dispatch' || type === 'minor') {
@@ -565,6 +598,29 @@ const SafetyPage = () => {
           <ChevronLeft size={18} /> <span className="hidden sm:inline">Back</span>
         </button>
         <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200 shadow-inner select-none shrink-0">
+            {[
+              { key: 'overall', label: t('navbar.overall') },
+              { key: '1', label: 'S1' },
+              { key: '2', label: 'S2' },
+              { key: '3', label: 'S3' }
+            ].map((item) => {
+              const isActive = (shift || 'overall') === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => navigate(`/shift/${item.key}/${dept || 'fgmw'}/s`)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 ${
+                    isActive 
+                      ? 'bg-orange-600 text-white shadow-sm scale-105 font-black' 
+                      : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100/85 font-bold'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
           <button
             onClick={() => {
               const headers = ['Date', 'Safety Incidents', 'Near Miss', 'Unsafe Acts', 'People Affected', 'Severity'];
@@ -766,7 +822,7 @@ const SafetyPage = () => {
         <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-5">
           <ChartCard title="MONTHLY INCIDENT TREND">
             <div className="h-[240px] w-full mt-2">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <LineChart data={yearlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                   <XAxis dataKey="name" fontSize={8} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontWeight: 700 }} />
@@ -800,20 +856,59 @@ const SafetyPage = () => {
 
         {/* TEAM & STAFF COMPLIANCE and OPERATIONAL LOGS */}
         <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-2">
-          <LogContainer title="Issues & Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsStaffModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="emerald" onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} />
-          <LogContainer title="Actions Safety Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActivityModalOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="blue" onShowDetails={handleShowActionDetails} canUpdate={canUpdate} />
+          <LogContainer title="Issues & Compliance" data={staffLogs} type="staff" onOpen={() => { if (!canUpdate) return; setIsActionTrackerMode(false); setIsAddChallengeOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="emerald" onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} onOpenVerification={(log) => setSelectedChallengeForVerification(log)} onOpenFda={(log) => { setSelectedChallengeForFda(log); setIsFdaWizardOpen(true); }} />
+          <LogContainer title="Actions Safety Logs" data={activityLogs} type="activity" onOpen={() => { if (!canUpdate) return; setIsActionTrackerMode(true); setIsAddChallengeOpen(true); }} setDeleteConfig={handleInterceptDelete} colorTheme="blue" onShowDetails={handleShowActionDetails} canUpdate={canUpdate} onOpenVerification={(log) => setSelectedChallengeForVerification(log)} />
         </div>
+        {isFdaWizardOpen && selectedChallengeForFda && (
+          <FDAInvestigationWizard
+            challenge={selectedChallengeForFda}
+            dept={dept || 'ehs'}
+            shift={shift || '1'}
+            onClose={() => {
+              setIsFdaWizardOpen(false);
+              setSelectedChallengeForFda(null);
+            }}
+            onSaveChallenge={async (wizardData) => {
+              await fetchMetrics(false);
+            }}
+          />
+        )}
+        {isAddChallengeOpen && (
+          <AddChallengeModal
+            isOpen={isAddChallengeOpen}
+            onClose={() => setIsAddChallengeOpen(false)}
+            dept={dept || 'fgmw'}
+            shift={shift || '1'}
+            letter="S"
+            isActionTracker={isActionTrackerMode}
+            onSave={(newChallenge) => {
+              navigate(`/fda-defence/challenge/${newChallenge.trackerId}`);
+            }}
+          />
+        )}
+        {/* AI Resolution Verification Modal */}
+        <AIResolutionVerificationModal
+          isOpen={!!selectedChallengeForVerification}
+          onClose={() => setSelectedChallengeForVerification(null)}
+          challenge={selectedChallengeForVerification}
+          onVerificationComplete={(updatedCh) => {
+            if (updatedCh) {
+              setSelectedChallengeForVerification(prev => ({ ...prev, ...updatedCh }));
+            }
+            fetchMetrics(false);
+          }}
+        />
 
       </main>
 
       {/* --- Modals --- */}
       <EntryModal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title="Issues & Compliance" type="staff" data={staffLogs} 
-        onAdd={() => setStaffLogs([{id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`, name: "", action: "", time: getISTTime(), resolved: false}, ...staffLogs])}
+        onAdd={() => { setIsActionTrackerMode(false); setIsAddChallengeOpen(true); }}
         onEdit={(i, f, v) => setStaffLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
-        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} />
-
+        setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('staff')} syncing={tableSyncing.staff} onToggleResolve={handleToggleResolve} onShowDetails={handleShowLogDetails} canUpdate={canUpdate} onOpenFda={(log) => { setSelectedChallengeForFda(log); setIsFdaWizardOpen(true); }} />
+ 
       <EntryModal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Actions Safety Logs" type="activity" data={activityLogs} 
-        onAdd={() => setActivityLogs([{id: `REF-${Math.floor(Math.random() * 9000 + 1000)}`, name: "", action: "", time: getISTTime(), resolved: false}, ...activityLogs])}
+        onAdd={() => { setIsActionTrackerMode(true); setIsAddChallengeOpen(true); }}
         onEdit={(i, f, v) => setActivityLogs(prev => { let u = [...prev]; u[i][f] = v; return u; })}
         setDeleteConfig={handleInterceptDelete} onSubmit={() => handleLogSubmit('activity')} syncing={tableSyncing.activity} onShowDetails={handleShowActionDetails} canUpdate={canUpdate} />
 
@@ -936,7 +1031,6 @@ const SafetyPage = () => {
   );
 };
 
-// Green/Red metric row
 const MetricRow = ({ label, value, isRed, redText, greenText }) => (
   <div className={`p-3 rounded-xl border font-black uppercase text-[10px] ${isRed ? 'bg-red-50 border-red-100 text-red-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
     <div className="flex justify-between items-center">
@@ -975,20 +1069,21 @@ const ChartCard = ({ title, children }) => (
 
 // --- Reusable Log Subcomponents ---
 
-const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
+const TableContent = ({ data, type, readonly, onEdit, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate, onOpenFda, onOpenVerification }) => {
   const isStaff = type === 'staff';
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="overflow-x-auto flex-1 flex flex-col">
         <div className="min-w-[420px] flex flex-col flex-1">
           {/* Header */}
-          <div className={`px-3 sm:px-8 py-3 bg-slate-50 grid ${isStaff ? 'grid-cols-6' : 'grid-cols-5'} text-[9px] font-black text-slate-400 uppercase border-b border-slate-100 shrink-0 select-none`}>
-            <span>{isStaff ? 'Date' : 'Employee ID'}</span>
-            <span>{isStaff ? 'Assigned To' : 'Description'}</span>
-            <span className="col-span-2">{isStaff ? 'Action Status' : 'Details'}</span>
-            <span>Time</span>
-            {isStaff && <span className="text-center">Resolve</span>}
-            {!isStaff && <span className="text-right">Del</span>}
+          <div className="px-4 py-2 bg-slate-50 flex gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 select-none">
+            <span className="w-24">Tracking ID</span>
+            <span className="w-24">Date</span>
+            <span className="flex-1">Assigned To</span>
+            <span className="flex-1">Action</span>
+            <span className="w-16">Time</span>
+            <span className="w-24 text-center">Resolve</span>
           </div>
           {/* Rows */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
@@ -1001,9 +1096,6 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
                   ? (isResolved ? 'bg-emerald-50/50 border-l-4 border-emerald-500 hover:bg-emerald-100/50' : 'bg-red-50/55 border-l-4 border-red-400 hover:bg-red-100/50')
                   : 'hover:bg-slate-50/50';
 
-                const user = JSON.parse(localStorage.getItem('userInfo'));
-                const isSuperAdmin = user?.role === 'superadmin';
-
                 return (
                   <div 
                     key={i} 
@@ -1012,63 +1104,61 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
                         if (onShowDetails) onShowDetails(log);
                       }
                     }}
-                    className={`grid ${isStaff ? 'grid-cols-6' : 'grid-cols-5'} py-3 items-center group px-3 sm:px-8 cursor-pointer ${rowBgClass}`}
+                    className={`py-3 flex gap-4 items-center group px-4 cursor-pointer ${rowBgClass}`}
                   >
-                    <input 
-                      disabled={readonly || !canUpdate} 
-                      className="text-[10px] font-bold text-slate-500 bg-transparent outline-none truncate mr-1 min-w-0 disabled:opacity-75 disabled:cursor-not-allowed" 
-                      value={isStaff ? (log.date || log.rawDate || '') : log.id} 
-                      onChange={(e) => onEdit && onEdit(i, isStaff ? 'date' : 'id', e.target.value)} 
-                    />
-                    <input 
-                      disabled={readonly || !canUpdate} 
-                      className="text-[10px] font-bold text-slate-700 bg-transparent outline-none truncate mr-1 min-w-0 disabled:text-slate-400 disabled:cursor-not-allowed" 
-                      value={isStaff ? (log.assignedName || log.name || '') : log.name} 
-                      onChange={(e) => onEdit && onEdit(i, isStaff ? 'assignedName' : 'name', e.target.value)} 
-                    />
-                    <div className="col-span-2 flex items-center gap-1 min-w-0 overflow-hidden">
-                      <input 
-                        disabled={readonly || !canUpdate} 
-                        className="text-[9px] font-bold text-slate-400 uppercase bg-transparent outline-none min-w-0 truncate flex-1 disabled:text-slate-400 disabled:cursor-not-allowed" 
-                        value={log.action} 
-                        onChange={(e) => onEdit && onEdit(i, 'action', e.target.value)} 
-                      />
-                    </div>
-                    <span className="text-[9px] text-slate-400 shrink-0 font-black">{log.time}</span>
-                    
-                    {isStaff && (
-                      <div className="flex items-center justify-center gap-1.5 select-none shrink-0">
+                    {/* Tracking ID */}
+                    <span className="w-24 text-[10px] font-black text-slate-800 tracking-tight">
+                      {log.trackerId || log.id || (log._id ? `CH-2026-${log._id.toString().slice(-4).toUpperCase()}` : '') || `CH-2026-${(i + 1).toString().padStart(4, '0')}`}
+                    </span>
+
+                    {/* Date */}
+                    <span className="w-24 text-[9.5px] font-bold text-slate-500">{log.date || log.rawDate || getISTDate()}</span>
+
+                    {/* Assigned To */}
+                    <span className="flex-1 text-[10px] font-black text-slate-700 truncate">
+                      {log.responsiblePersonName || log.responsiblePerson?.name || (log.assignedName && log.assignedName !== 'N/A' ? log.assignedName : null) || log.reportedByName || 'System Assigned'}
+                    </span>
+
+                    {/* Action */}
+                    <span className="flex-1 text-[9.5px] font-medium text-slate-500 truncate">{log.action || log.actionNotes || log.capa || log.description || log.name || 'Action Logged'}</span>
+
+                    {/* Time */}
+                    <span className="w-16 text-[9px] font-black text-slate-400">{log.time || log.occurredTime || getISTTime()}</span>
+
+                    {/* Resolve Toggle & Delete */}
+                    <div className="w-24 flex items-center justify-center gap-2 shrink-0 select-none">
+                      {isStaff && (
                         <button
                           disabled={!canUpdate}
-                          onClick={() => onToggleResolve && onToggleResolve(i, !isResolved)}
-                          className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : ''} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
+                          type="button"
+                          title={isResolved ? "View Verification / Resolution Status" : "Upload After Image & Verify Resolution"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenVerification) {
+                              onOpenVerification(log);
+                            } else if (onToggleResolve) {
+                              onToggleResolve(i, !isResolved);
+                            }
+                          }}
+                          className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center ${!canUpdate ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} ${isResolved ? 'bg-emerald-500 justify-end' : 'bg-red-500 justify-start'}`}
                         >
-                          <div className="bg-white w-4 h-4 rounded-full shadow-md"></div>
+                          <div className="bg-white w-3.5 h-3.5 rounded-full shadow-md"></div>
                         </button>
-                        {(isSuperAdmin || !readonly) && (
-                          <button 
-                            disabled={!canUpdate}
-                            onClick={() => setDeleteConfig && setDeleteConfig({ isOpen: true, type, index: i })} 
-                            className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 size={13}/>
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {!isStaff && (
-                      <div className="text-right shrink-0">
-                        {(isSuperAdmin || !readonly) && (
-                          <button 
-                            onClick={() => setDeleteConfig && setDeleteConfig({ isOpen: true, type, index: i })} 
-                            className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all hover:bg-rose-50"
-                          >
-                            <Trash2 size={13}/>
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {setDeleteConfig && (
+                        <button
+                          type="button"
+                          title="Delete Entry (Superadmin Only)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfig({ isOpen: true, type, index: i, rawDate: log.rawDate });
+                          }}
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -1080,7 +1170,7 @@ const TableContent = ({ data, type, onEdit, readonly, setDeleteConfig, onToggleR
   );
 };
 
-const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
+const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate, onOpenFda, onOpenVerification }) => {
   const theme = THEME_STYLES[colorTheme];
   return (
     <div className="bg-white rounded-[2.5rem] shadow-md border-2 border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
@@ -1088,7 +1178,7 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, 
         <h3 className={`font-black text-[11px] uppercase ${theme.text}`}>{title}</h3>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col">
-        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} />
+        <TableContent data={data.slice(0, 8)} type={type} readonly setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} onOpenFda={onOpenFda} onOpenVerification={onOpenVerification} />
       </div>
       {data.length > 8 && (
         <div className="px-8 py-3 bg-slate-50 border-t border-slate-100 text-center">
@@ -1099,7 +1189,7 @@ const LogContainer = ({ title, data, type, onOpen, colorTheme, setDeleteConfig, 
   );
 };
 
-const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate }) => {
+const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmit, syncing, setDeleteConfig, onToggleResolve, onShowDetails, canUpdate, onOpenFda }) => {
   const tableRef = useRef(null);
   if (!isOpen) return null;
   const theme = THEME_STYLES[type === 'staff' ? 'emerald' : 'blue'];
@@ -1123,7 +1213,7 @@ const EntryModal = ({ isOpen, onClose, title, type, data, onAdd, onEdit, onSubmi
           )}
         </div>
         <div className="flex-1 overflow-y-auto" ref={tableRef}>
-          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} />
+          <TableContent data={data} type={type} onEdit={onEdit} setDeleteConfig={setDeleteConfig} onToggleResolve={onToggleResolve} onShowDetails={onShowDetails} canUpdate={canUpdate} onOpenFda={onOpenFda} />
         </div>
         <div className="p-8 border-t flex items-center gap-6">
           <button onClick={onClose} className="font-black text-slate-400 text-[10px] uppercase">Discard</button>
